@@ -1,0 +1,13 @@
+numpy==1.26.2
+pandas==2.1.4
+statsmodels==0.14.0
+requests==2.31.0
+hanzidentifier==1.2.0
+requests==2.31.0
+
+
+selenium==4.16.0
+
+Blinker
+python-dotenv
+Watchdog
