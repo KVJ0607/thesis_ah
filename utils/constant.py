@@ -1,6 +1,4 @@
 import os
-#Meta_data
-META_DATA_FILE='data/meta.txt'
 #DB instance path 
 INSTANCE_PATH= 'instance'
 #DB db path 
@@ -17,6 +15,13 @@ MASTER_DICTIONARY_FILENAME='data/master_dictionary/Loughran-McDonald_MasterDicti
 PRICING_DATA_SOURCE="data/pricing"
 COMPANY_CSV="Company_Project/data/source/companies.csv"
 
+# API keys 
+with open('api_key.txt','r') as f: 
+    for line in f: 
+        if line.startswith('gnews'):
+            _, api_key = line.strip().split('=')
+            GNEWS_KEYS=api_key
+GNEWS_KEYS
 
 
 

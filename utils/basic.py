@@ -66,7 +66,14 @@ def get_element_from_list_with_indexes(nd_list, index_list):
         element = element[idx]
     return element
 
-def set_element_of_list_with_indexes(nd_list, index_list, value):
+def set_element_of_list_with_indexes(nd_list, index_list, value)->None:
+    """set one value into one element in a list 
+
+    Args:
+        nd_list (_type_): the list to be altered
+        index_list (_type_): list of indexes point to the element to be altered. e.g. index_list=[2,3,1] is nd_list[2][3][1]
+        value (_type_): the value to be input to the list 
+    """
     # Get to the element one level above the target
     element = nd_list
     for idx in index_list[:-1]:  # Go up to the second-to-last index

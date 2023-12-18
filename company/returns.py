@@ -1,10 +1,8 @@
-import sqlite3
-
 from utils.basic import flatten_list_element
 from company.company import *
-from company.database_interface import get_return_by_company,get_return_by_index_company,get_nd_list_with_columns_values
+from company.orm import Object2Relational
 
-def cal_adjusted_daily_returns(flatten_result=False,db_path=COMPANIES_DB)->list[tuple]: 
+def cal_adjusted_daily_returns(flatten_result=False,db_path=COMPANIES_DB)->list[Return]: 
     """calculate adjusted_daily_return from a database
 
     Args:
@@ -13,97 +11,44 @@ def cal_adjusted_daily_returns(flatten_result=False,db_path=COMPANIES_DB)->list[
     Returns:
         list[tuple]: each tuple represent one adjusted daily return entity and for each tuple:(date,return,type,flag,listed_region,company_id,index_company_id,pricing_id)
     """
-    con=sqlite3.connect(db_path)
-    c=con.cursor()
-    
-    #get all distinct company_id from the company
-    all_company_id=c.execute('''
-                          SELECT DISTINCT id
-                          FROM company 
-                          WHERE id IS NOT NULL
-                          ''').fetchall()
-    
-    
-    #get all distinct flag from the pricing 
-    all_flag=c.execute('''
-                       SELECT DISTINCT flag 
-                       FROM pricing 
-                       WHERE flag IS NOT NULL
-                       ''').fetchall()
-    
-    #un-tuple the data
-    all_company_id=tuple(ele[0] for ele in all_company_id)
-    all_flag=tuple(ele[0] for ele in all_flag)
-    all_pricing_by_company=[]
-    
-    for index_i in all_company_id: 
-        pricing_given_company_id=list()
-        for index_j in all_flag:         
-            pricing_element=c.execute('''
-                                      SELECT date,adjusted_close,flag,listed_region,company_id,index_company_id,id
-                                      FROM pricing
-                                      WHERE company_id=?
-                                      AND flag=?
-                                      ORDER BY date
-                                    ''',(index_i,index_j)).fetchall()
-            
-            pricing_given_company_id.append(pricing_element)
-        all_pricing_by_company.append(tuple(pricing_given_company_id))
-            
+    #define handler 
+    pricing_handler=Object2Relational(Pricing)
+
+    #get all pricing by company_id
+    all_pricing_by_company=pricing_handler.fetch_object_with_columns_values('company_id','flag',order_column='date',db_path=db_path)
+    all_index_pricing_by_company=pricing_handler.fetch_object_with_columns_values('index_company_id',order_column='date',db_path=db_path)
         
     #calculate daily return by company by date
     all_companies_adjusted_daily_return=[]
-
+    
     for pricing_of_one_company in all_pricing_by_company: 
         company_adjusted_daily_return=[]        
         yesterday_adjusted_close=None
         for pricing_in_one_day in pricing_of_one_company:
-            date_,adjusted_close,flag,listed_region,company_id,index_company_id,pricing_id=pricing_in_one_day
+            date_,open,high,low,close,adjusted_close,volume,flag,listed_region,pricing_id,company_id,index_company_id=pricing_in_one_day.to_tuple()
             if len(company_adjusted_daily_return)==0: 
                 yesterday_adjusted_close=adjusted_close
             else: 
                 adjusted_daily_return=(adjusted_close-yesterday_adjusted_close)/yesterday_adjusted_close
                 yesterday_adjusted_close=adjusted_close
-                company_adjusted_daily_return.append((date_,adjusted_daily_return,'adjusted_daily_return',flag,listed_region,company_id,index_company_id,pricing_id))
+                company_adjusted_daily_return.append(Return.from_tuple((date_,adjusted_daily_return,'adjusted_daily_return',flag,listed_region,company_id,index_company_id,pricing_id)))
         
         all_companies_adjusted_daily_return=all_companies_adjusted_daily_return+company_adjusted_daily_return
 
         
-
-    #get all distinct codes of index_company
-    all_index_company_id=c.execute('''
-                        SELECT index_company_id 
-                        FROM pricing 
-                        WHERE index_company_id IS NOT NULL
-                        ''').fetchall()
-    #get all pricing data by code of index_company
-    all_index_pricing_by_company=[]
-    for index_company_id in all_index_company_id: 
-        pricing_given_index_company_id=c.execute('''
-                  SELECT date,adjusted_close,flag,listed_region,company_id,index_company_id,id
-                  FROM pricing
-                  WHERE index_company_id=?index_company_id
-                  ORDER BY date
-                  ''',index_company_id
-                  ).fetchall()
-        all_index_pricing_by_company.append(pricing_given_index_company_id)
     #calculate all returns by index_company and by date 
     for index_pricing_in_one_company in all_index_pricing_by_company: 
         index_company_adjusted_daily_return=[]
         yesterday_adjusted_close=None
         for index_pricing_in_one_day in index_pricing_in_one_company: 
-            date_,adjusted_close,flag,listed_region,company_id,index_company_id,pricing_id=index_pricing_in_one_day
+            date_,open,high,low,close,adjusted_close,volume,flag,listed_region,pricing_id,company_id,index_company_id=pricing_in_one_day.to_tuple()
             if len(index_company_adjusted_daily_return)==0: 
                 yesterday_adjusted_close=adjusted_close
             else: 
                 adjusted_daily_return=(adjusted_close-yesterday_adjusted_close)/yesterday_adjusted_close
                 yesterday_adjusted_close=adjusted_close
-                index_company_adjusted_daily_return.append((date_,adjusted_daily_return,'adjusted_daily_return',flag,listed_region,company_id,index_company_id,pricing_id))
+                index_company_adjusted_daily_return.append(Return.from_tuple((date_,adjusted_daily_return,'adjusted_daily_return',flag,listed_region,company_id,index_company_id,pricing_id)))
         all_companies_adjusted_daily_return=all_companies_adjusted_daily_return+index_company_adjusted_daily_return
-    #closing connection 
-    c.close()
-    con.close()
-    
     if flatten_result: 
         flatten_list_element(all_companies_adjusted_daily_return,Return)
     return all_companies_adjusted_daily_return
@@ -119,11 +64,6 @@ def cal_abnormal_returns(flatten_result=False,db_path=COMPANIES_DB)->list[list[R
         list[list[tuple]]: each tuple represent one abnormal return entity and for each tuple:(date,return,type,flag,listed_region,id,company_id,index_company_id,pricing_id)
         each list of tuple represent all abnormal return in one company 
     """
-    result:list[list[tuple]]=[]
-
-    all_return_in_class_by_company=get_return_by_company('adjusted_daily_return')
-    all_return_in_class_by_index_company=get_return_by_index_company('adjusted_daily_return')
-    
     def _get_index_return_by_date_listed_region(date_:str,listed_region:str,all_return_in_class_by_index_company:list[list[Return]])->float: 
         for index_return_of_one_index in all_return_in_class_by_index_company: 
             index_listed_region=index_return_of_one_index[0].listed_region            
@@ -131,6 +71,11 @@ def cal_abnormal_returns(flatten_result=False,db_path=COMPANIES_DB)->list[list[R
                 for index_return in index_return_of_one_index: 
                     if  index_return.date_==date_: 
                         return index_return.return_
+                    
+    result:list[list[tuple]]=[]
+    return_handler=Object2Relational(Return,db_path)
+    all_return_in_class_by_company=return_handler.fetch_object_with_columns_values('company_id','flag',column_value_pair=[('type','adjusted_daily_return')],order_column='date')
+    all_return_in_class_by_index_company=return_handler.fetch_object_with_columns_values('index_company_id',column_value_pair=[('type','adjusted_daily_return')],order_column='date')
                 
     #hsce sse szse
     for all_company_return_in_class in all_return_in_class_by_company: 
@@ -156,13 +101,12 @@ def cal_car3s(flatten_result=False,db_path=COMPANIES_DB)->list[list[list[Car3]]]
     Returns:
         list[list[list[Car3]]]: car3 of flag of company; result[i][0][j] corrsponding to abnormal returns of company i in the h/a market and the jth record by date. 
     """
-    #So car3 is basically one date and three returns info 
-    #so we first get all "today return"
-    #In order to create a tuple of car3, we need date,car3,flag,cp_id,ld_return_id,td_id,nd_id
-    dimension_list=['company_id','flag']
-    col_val_pair=('type','abnormal_return')
+    #define a handler 
+    return_handler=Object2Relational(Return,db_path)
+    
+    col_val_pair=[('type','abnormal_return')]
     target_col=['date','return','flag','id','company_id']
-    ab_return=get_nd_list_with_columns_values(dimension_list,target_columns=target_col,table='return',column_value_pair=col_val_pair,order_column='date',db_path=db_path)  
+    ab_return=return_handler.fetch_col_by_requirements('company_id','flag',target_columns=target_col,column_value_pair=col_val_pair,order_column='date')
     result_list=[]
     for company_d in ab_return: 
         result_list_by_cp=[]
@@ -186,38 +130,5 @@ def cal_car3s(flatten_result=False,db_path=COMPANIES_DB)->list[list[list[Car3]]]
                 
                     
                 
-# Commit result to db 
-def commit_returns(returns:list[Return],db_path:COMPANIES_DB)->None:
-    """commit returns to sqlite database
-    Args:
-        returns (list[Return]): list of tuple, each tuple representing one returns:(date,return,type,flag,listed_region,company_id,index_company_id,pricing_id) 
-        db_path (COMPANIES_DB): sqlite3 database path
-    """
-    con=sqlite3.connect(db_path)
-    c=con.cursor()
-    for return_ in returns: 
-        sql_=f"""
-        INSERT INTO return({Return.db_insert_col()})
-        VALUES(?date_,?return_,?type_,?flag,?listed_region,?company_id,?index_company_id,?pricing_id)
-        """            
-        data=return_.to_insert_para()
-        c.execute(sql_,data)
-    con.commit()
-    c.close()
-    con.close()
     
     
-
-def commit_car3s(returns:list[Car3],db_path=COMPANIES_DB)->None:
-    con=sqlite3.connect(db_path)
-    c=con.cursor()
-    for ele in returns: 
-        sql_=f'''
-        INSERT INTO car3({Car3.db_insert_col()})
-        VALUES(?date,?car3,?flag,?company_id,?last_day_return_id,?today_return_id,?next_day_return_id)
-        '''
-        data=ele.to_insert_para()
-        c.execute(sql_,data)
-    con.commit()
-    c.close()
-    con.close()

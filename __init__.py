@@ -1,0 +1,20 @@
+#from utils.constant import COMPANIES_DB
+from company.data_management import init_db
+from company.main import read_and_commit_companies_from_csv,read_and_commit_index_company_from_csv,read_and_commit_pricing_from_a_directory
+from company.orm import object2relational_commit
+from company.returns import cal_adjusted_daily_returns,cal_abnormal_returns,cal_car3s
+from article.hkexnews.hkexnews import generate_document
+from article.gnews import request_with_keyword
+#COMPANIES_DB
+init_db()
+read_and_commit_companies_from_csv('data/company/companies.csv')
+read_and_commit_index_company_from_csv('data/company/index_companies.csv')
+read_and_commit_pricing_from_a_directory('data/pricing')
+ADJUSTED_DAILY_RETURNS=cal_adjusted_daily_returns(True)
+ABNORMAL_RETURNS=cal_abnormal_returns(True)
+CAR3S=cal_car3s(True)
+object2relational_commit(ADJUSTED_DAILY_RETURNS)
+object2relational_commit(ABNORMAL_RETURNS)
+object2relational_commit(CAR3S)
+generate_document()
+request_with_keyword()

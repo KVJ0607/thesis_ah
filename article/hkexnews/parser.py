@@ -8,8 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 
-from company.company import Company
-from article.hkexnews.hkexnews import HKEXNEWS
+from company.company import Company,Document
 
 
 
@@ -30,7 +29,7 @@ def click_load_button(driver):
 
 
 
-def get_news(company:Company): 
+def get_hkexnews(company:Company)->list[Document]: 
     URL = 'https://www1.hkexnews.hk/search/titlesearch.xhtml?lang=en'
     hcode_key = company.get_digits_hcode()
     driver = webdriver.Chrome()
@@ -77,16 +76,16 @@ def get_news(company:Company):
     time.sleep(2)
     rows = driver.find_elements(By.TAG_NAME,"tr")
     rows = rows[1:-1]
-    news_list = []
+    document_list = []
     for row in rows: 
         time_ele =  row.find_element(By.CLASS_NAME,'release-time').text
         #doc_ele =  row.find_element(By.CLASS_NAME,'headline').text
         url_title = row.find_element(By.CLASS_NAME,'doc-link').text
         url = row.find_element(By.CLASS_NAME,'doc-link').find_element(By.TAG_NAME,'a').get_attribute("href")
-        news_list.append(HKEXNEWS(url,url_title,time_ele,company.h_code))
+        document_list.append(Document(url,url_title,time_ele,company.h_code))
     time.sleep(2)
     # Remember to close the driver
     driver.quit()
-    return news_list 
+    return document_list 
 
 
