@@ -1,6 +1,6 @@
 import itertools
-
-def create_nd_list(dimensions, value=0):
+from datetime import datetime
+def create_nd_list(dimensions, value=[]):
     """Creating an n-dimensional list variable dimensions 
 
     Args:
@@ -19,23 +19,14 @@ def create_nd_list(dimensions, value=0):
         return value
     return [create_nd_list(dimensions[1:], value) for _ in range(dimensions[0])]
 
-
-def flatten_list(ele:tuple,base_type)->list: 
-    new_ele=list(ele)
-    result=[]
-    if type(new_ele) == base_type: 
-        return new_ele 
-    else: 
-        for ele in new_ele: 
-            result=result+flatten_list(ele,base_type)
-    return result
-    
-    
 def flatten_list_element(unevent_list:list|tuple,base_type)->list: 
-    flatten_list=[]
-    for ele in unevent_list: 
-        flatten_list.append(flatten_list(ele,base_type))
-    return flatten_list    
+    flatten_list_=[]
+    for ele in unevent_list:
+        if type(ele)==base_type:
+            flatten_list_.append(ele)
+        else:
+            flatten_list_=flatten_list_+flatten_list_element(ele,base_type)
+    return flatten_list_    
 
 def iterate_indexes(list_of_dimension_size:list[int])->list: 
     """ return get all the indexes cross product
@@ -50,12 +41,17 @@ def iterate_indexes(list_of_dimension_size:list[int])->list:
         list: an iterable list like object
     """
     if len(list_of_dimension_size)<2: 
-        return list_of_dimension_size
+        result=[]
+        for i in range(list_of_dimension_size[0]): 
+            new_ele=list()
+            new_ele.append(i)
+            result.append(tuple(new_ele))
+        return result
+        
     result=itertools.product(range(list_of_dimension_size[0]),range(list_of_dimension_size[1]))
     for dim_size in list_of_dimension_size[2:]: 
         new_d=range(dim_size)
         result=itertools.product(result,new_d)
-    result=flatten_list_element(list(result),int)
     return result
 
 def get_element_from_list_with_indexes(nd_list, index_list):
@@ -74,6 +70,10 @@ def set_element_of_list_with_indexes(nd_list, index_list, value)->None:
         index_list (_type_): list of indexes point to the element to be altered. e.g. index_list=[2,3,1] is nd_list[2][3][1]
         value (_type_): the value to be input to the list 
     """
+    def _supports_item_assignment(obj):
+        return hasattr(obj, '__setitem__')
+    
+
     # Get to the element one level above the target
     element = nd_list
     for idx in index_list[:-1]:  # Go up to the second-to-last index
@@ -83,3 +83,17 @@ def set_element_of_list_with_indexes(nd_list, index_list, value)->None:
     final_index = index_list[-1]  # Get the last index
     element[final_index] = value
     
+def convert_to_iso_hkexnews(datetime_str):
+    
+    # Define the input format and the format for ISO 8601
+    input_format = '%d/%m/%Y %H:%M'
+    iso_format = '%Y-%m-%dT%H:%M:%S'
+    
+    # Parse the input string into a datetime object
+    datetime_obj = datetime.strptime(datetime_str, input_format)
+    
+    # Convert the datetime object to a string in ISO 8601 format
+    iso_datetime_str = datetime_obj.strftime(iso_format)
+    
+    return iso_datetime_str
+

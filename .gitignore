@@ -32,7 +32,8 @@ myenv
 
 #files
 article/hkexnews/chrome-mac-arm64
+api_key.txt
 
 #Instance-specific files
 instance/
-
+temp*

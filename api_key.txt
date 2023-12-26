@@ -1,1 +1,2 @@
-gnews=
+gnews=7c0e964133a7542227fad46aff39f7b5
+driver_path=/Users/kelvinyuen/Documents/GitHub/thesis_ah/article/hkexnews/chrome-mac-arm64

@@ -1,11 +1,13 @@
-
+from typing import Callable
 import sqlite3
+from sqlite3 import Error
 from company.company import *
 from utils.constant import COMPANIES_DB
-from utils.basic import create_nd_list,iterate_indexes,set_element_of_list_with_indexes
+from utils.basic import create_nd_list,iterate_indexes,set_element_of_list_with_indexes,flatten_list_element
 _COMPANY_LOOKUP={    
     'rational_representation':Company.rational_representation,
     'db_insert_col':Company.db_insert_col,
+    'db_ignore_insert_col':Company.db_ignore_insert_col,
     'from_tuple':Company.from_tuple,
     'to_dict':Company.to_dict,
     'to_tuple':Company.to_tuple,
@@ -13,9 +15,20 @@ _COMPANY_LOOKUP={
     'table_reference_names_pair':Company.table_reference_names_pair
 }
 
+_COMPANY_MINING_LOOKUP={    
+    'rational_representation':CompanyMining.rational_representation,
+    'db_insert_col':CompanyMining.db_insert_col,
+    'db_ignore_insert_col':CompanyMining.db_ignore_insert_col,
+    'from_tuple':CompanyMining.from_tuple,
+    'to_dict':CompanyMining.to_dict,
+    'to_tuple':CompanyMining.to_tuple,
+    'to_insert_para':CompanyMining.to_insert_para ,
+    'table_reference_names_pair':CompanyMining.table_reference_names_pair
+}
 _INDEXCOMPANY_LOOKUP={    
     'rational_representation':IndexCompany.rational_representation,
     'db_insert_col':IndexCompany.db_insert_col,
+    'db_ignore_insert_col':IndexCompany.db_ignore_insert_col,
     'from_tuple':IndexCompany.from_tuple,
     'to_dict':IndexCompany.to_dict,
     'to_tuple':IndexCompany.to_tuple,
@@ -26,6 +39,7 @@ _INDEXCOMPANY_LOOKUP={
 _KEYWORD_LOOKUP={    
     'rational_representation':Keyword.rational_representation,
     'db_insert_col':Keyword.db_insert_col,
+    'db_ignore_insert_col':Keyword.db_ignore_insert_col,
     'from_tuple':Keyword.from_tuple,
     'to_dict':Keyword.to_dict,
     'to_tuple':Keyword.to_tuple,
@@ -36,6 +50,7 @@ _KEYWORD_LOOKUP={
 _PRICING_LOOKUP={    
     'rational_representation':Pricing.rational_representation,
     'db_insert_col':Pricing.db_insert_col,
+    'db_ignore_insert_col':Pricing.db_ignore_insert_col,
     'from_tuple':Pricing.from_tuple,
     'to_dict':Pricing.to_dict,
     'to_tuple':Pricing.to_tuple,
@@ -47,6 +62,7 @@ _PRICING_LOOKUP={
 _RETURN_LOOKUP={    
     'rational_representation':Return.rational_representation,
     'db_insert_col':Return.db_insert_col,
+    'db_ignore_insert_col':Return.db_ignore_insert_col,
     'from_tuple':Return.from_tuple,
     'to_dict':Return.to_dict,
     'to_tuple':Return.to_tuple,
@@ -58,6 +74,7 @@ _RETURN_LOOKUP={
 _CAR3_LOOKUP={    
     'rational_representation':Car3.rational_representation,
     'db_insert_col':Car3.db_insert_col,
+    'db_ignore_insert_col':Car3.db_ignore_insert_col,
     'from_tuple':Car3.from_tuple,
     'to_dict':Car3.to_dict,
     'to_tuple':Car3.to_tuple,
@@ -68,6 +85,7 @@ _CAR3_LOOKUP={
 _ARTICLE_LOOKUP={    
     'rational_representation':Article.rational_representation,
     'db_insert_col':Article.db_insert_col,
+    'db_ignore_insert_col':Article.db_ignore_insert_col,
     'from_tuple':Article.from_tuple,
     'to_dict':Article.to_dict,
     'to_tuple':Article.to_tuple,
@@ -78,6 +96,7 @@ _ARTICLE_LOOKUP={
 _QUERY_LOOKUP={    
     'rational_representation':Query.rational_representation,
     'db_insert_col':Query.db_insert_col,
+    'db_ignore_insert_col':Query.db_ignore_insert_col,
     'from_tuple':Query.from_tuple,
     'to_dict':Query.to_dict,
     'to_tuple':Query.to_tuple,
@@ -87,6 +106,7 @@ _QUERY_LOOKUP={
 _DOCUMENT_LOOKUP={
     'rational_representation':Document.rational_representation,
     'db_insert_col':Document.db_insert_col,
+    'db_ignore_insert_col':Document.db_ignore_insert_col,
     'from_tuple':Document.from_tuple,
     'to_dict':Document.to_dict,
     'to_tuple':Document.to_tuple,
@@ -96,6 +116,7 @@ _DOCUMENT_LOOKUP={
 _TONESCORE_LOOKUP={    
     'rational_representation':Tonescore.rational_representation,
     'db_insert_col':Tonescore.db_insert_col,
+    'db_ignore_insert_col':Tonescore.db_ignore_insert_col,
     'from_tuple':Tonescore.from_tuple,
     'to_dict':Tonescore.to_dict,
     'to_tuple':Tonescore.to_tuple,
@@ -105,6 +126,7 @@ _TONESCORE_LOOKUP={
 MENTIONIN_LOOKUP={    
     'rational_representation':MentionIn.rational_representation,
     'db_insert_col':MentionIn.db_insert_col,
+    'db_ignore_insert_col':MentionIn.db_ignore_insert_col,
     'from_tuple':MentionIn.from_tuple,
     'to_dict':MentionIn.to_dict,
     'to_tuple':MentionIn.to_tuple,
@@ -114,6 +136,7 @@ MENTIONIN_LOOKUP={
 _AFFECTING_LOOKUP={    
     'rational_representation':Affecting.rational_representation,
     'db_insert_col':Affecting.db_insert_col,
+    'db_ignore_insert_col':Affecting.db_ignore_insert_col,
     'from_tuple':Affecting.from_tuple,
     'to_dict':Affecting.to_dict,
     'to_tuple':Affecting.to_tuple,
@@ -123,6 +146,7 @@ _AFFECTING_LOOKUP={
 _CAUSING_LOOKUP={    
     'rational_representation':Causing.rational_representation,
     'db_insert_col':Causing.db_insert_col,
+    'db_ignore_insert_col':Causing.db_ignore_insert_col,
     'from_tuple':Causing.from_tuple,
     'to_dict':Causing.to_dict,
     'to_tuple':Causing.to_tuple,
@@ -132,6 +156,7 @@ _CAUSING_LOOKUP={
 
 _RELATIONAL_REPRESENTATION_LOOKUP={
     'company':_COMPANY_LOOKUP,
+    'company_mining':_COMPANY_MINING_LOOKUP,
     'index_company':_INDEXCOMPANY_LOOKUP,
     'keyword':_KEYWORD_LOOKUP,
     'pricing':_PRICING_LOOKUP,
@@ -156,6 +181,7 @@ def get_obj_rr(obj)->str:
         str: the relational representation 
     """
     if type(obj)==Company: return 'company'
+    elif type(obj)==CompanyMining: return 'company_mining'
     elif type(obj)==IndexCompany: return 'index_company'
     elif type(obj)==Keyword: return 'keyword'
     elif type(obj)==Pricing: return 'pricing'
@@ -168,7 +194,7 @@ def get_obj_rr(obj)->str:
     elif type(obj)==Affecting: return 'affecting'
     elif type(obj)==Causing: return 'causing'
     else: 
-        raise(TypeError('The type{} is not supported'.format(type(obj))))
+        raise(TypeError(f'The type{type(obj)} is not supported'))
 
 def get_class_rr(class_)->str: 
     """get the relational representation of a class
@@ -180,6 +206,7 @@ def get_class_rr(class_)->str:
         str: the relational representation
     """
     if class_==Company: return 'company'
+    elif class_==CompanyMining: return 'company_mining'
     elif class_==IndexCompany: return 'index_company'
     elif class_==Keyword: return 'keyword'
     elif class_==Pricing: return 'pricing'
@@ -192,9 +219,9 @@ def get_class_rr(class_)->str:
     elif class_==Affecting: return 'affecting'
     elif class_==Causing: return 'causing'
     else: 
-        raise(TypeError('The type{} is not supported'.format(class_)))    
+        raise(TypeError(f'The type{class_} is not supported'))    
     
-def general_lookup(relational_represenatation:str,function_name:str)->function: 
+def general_lookup(relational_represenatation:str,function_name:str): 
     class_lookup =_RELATIONAL_REPRESENTATION_LOOKUP.get(relational_represenatation,None)
     if class_lookup is None: 
         raise(ValueError(f'relational_representation doesnot have {relational_represenatation}'))
@@ -203,7 +230,7 @@ def general_lookup(relational_represenatation:str,function_name:str)->function:
         raise(ValueError(f'function_name doesnot have {function_name}'))
     return result
 
-def general_lookup_with_undetermined_type(obj,function_name:str)->function: 
+def general_lookup_with_undetermined_type(obj,function_name:str): 
     """It returns the corresponding function with that corresponding class of object 
 
     Args:
@@ -216,8 +243,8 @@ def general_lookup_with_undetermined_type(obj,function_name:str)->function:
     obj_rr= get_obj_rr(obj)
     return general_lookup(obj_rr,function_name)
 
-def object2relational_commit(objects,check_duplication=False,db_path=COMPANIES_DB)->None: 
-    """commit object of varius type to sqlite database
+def object2relational_insert_commit(objects,db_path=COMPANIES_DB)->None: 
+    """insert object of varius type to sqlite database
 
     Args:
         objects: an iterable of object that to be commited to database
@@ -226,18 +253,41 @@ def object2relational_commit(objects,check_duplication=False,db_path=COMPANIES_D
     con=sqlite3.connect(db_path)
     c=con.cursor()
     
-    sql_= """INSERT ? ? VALUES ?"""
     for obj in objects: 
-        obj_rr=general_lookup_with_undetermined_type(obj,'rational_representation')(type(obj))
-        insert_statement=general_lookup_with_undetermined_type(obj,'db_insert_col')(type(obj))
+        insert_statement=general_lookup_with_undetermined_type(obj,'db_insert_col')()
         insert_value=general_lookup_with_undetermined_type(obj,'to_insert_para')(obj)
-        para=(obj_rr,insert_statement,insert_value)
-        c.execute(sql_,para)
+        c.execute(insert_statement,insert_value)
     con.commit()
+    
     c.close()
     con.close()
+
     
-    
+def object2relational_ignore_commit(objects,db_path=COMPANIES_DB)->None: 
+    """insert or ignore object of varius type to sqlite database
+
+    Args:
+        objects: an iterable of object that to be commited to database
+        db_path (COMPANIES_DB): sqlite3 database path
+    """
+    try: 
+        con=sqlite3.connect(db_path)
+        c=con.cursor()
+        c.execute('BEGIN TRANSACTION;')
+        for obj in objects: 
+            insert_statement=general_lookup_with_undetermined_type(obj,'db_ignore_insert_col')()
+            insert_value=general_lookup_with_undetermined_type(obj,'to_insert_para')(obj)
+            c.execute(insert_statement,insert_value)        
+        con.commit()
+    except Error as e:
+    # An error occurred, roll back the transaction
+        con.rollback()
+        print(e)
+    finally:
+        c.close()
+        con.close()    
+        
+
 class Object2Relational: 
     
     """A handler for relational table. 
@@ -265,7 +315,8 @@ class Object2Relational:
         return self.__db_path
     
     def relational_representation(self)->str: 
-        return self.__lookup_table['rational_representation'](self.__class)
+        return get_class_rr(self.__class)
+    
     def db_insert_col(self)->str: 
         """generate the snippet of sql for Insert row to db
 
@@ -273,6 +324,7 @@ class Object2Relational:
             Documentstr: the str between INSERT and VALUES
         """
         return self.__lookup_table['db_insert_col'](self.__class)
+    
     def from_tuple(self,tuple_:tuple): 
         """init the object with tuple input 
 
@@ -283,6 +335,7 @@ class Object2Relational:
             _type_: the object instance 
         """
         return self.__lookup_table['from_tuple'](tuple_)
+    
     def get_foreign_key_of_foreign_table(self,foreign_class)->list[tuple[str]]: 
         """get the pair of column that this class is linked by a col of a foreign class table 
 
@@ -293,12 +346,15 @@ class Object2Relational:
             list[tuple[str]]: a list of all column pair (main_col,for_col)
         """
         foreign_rr=get_class_rr(foreign_class)
-        result=general_lookup(foreign_rr,'table_reference_names_pair')(self.__class)
+        result=general_lookup(foreign_rr,'table_reference_names_pair')(self.relational_representation())
         return result
+    
     def to_dict(self,obj): 
         return self.__lookup_table['to_dict'](obj)
+    
     def to_tuple(self,obj):
         return self.__lookup_table['to_tuple'](obj)
+    
     def to_insert_para(self,obj)->tuple:
         """get the tuple of value to the parameter to execute insert sql
 
@@ -310,14 +366,37 @@ class Object2Relational:
         """
         return self.__lookup_table['to_insert_para'](obj)
 
-
     def check_if_exist(self,unique_col:str,unique_val)->bool: 
+        """check if if a row with value in col exists
+
+        Example: 
+            row_exists=handler.check_if_exist('title=?',title)
+        Args:
+            unique_col (str): the column requirenment
+            unique_val (_type_): the value
+
+        Returns:
+            bool: True/False 
+        
+        """
         result=self.fetch_some([(unique_col,unique_val)])
         if len(result)==0: 
             return False
         else: 
             return True
+        
     def check_if_exist_unique_tuples(self,unique_list:list[tuple])->bool: 
+        """check if if a row with requirements in multiple column 
+
+        Example: 
+            row_exists=handler.check_if_exist([('title=?',title),('version>?',3)])
+            
+        Args:
+            unique_list (list[tuple]): the list of requirement tuple; each element represent one column requirement
+
+        Returns:
+            bool: True/False
+        """
         results=self.fetch_col_by_requirements(target_columns=['id'],column_value_pair=unique_list)
         if len(results)==0: 
             return False
@@ -340,8 +419,10 @@ class Object2Relational:
         con.commit()
         c.close()
         con.close()
+
+    #plain fetch         
     def fetch_all(self)->list: 
-        """ fetch all the object in the database 
+        """ fetch all the objects in the database 
         
         Return: 
             list: a list of python object is returned
@@ -352,9 +433,8 @@ class Object2Relational:
         c=con.cursor()
     
         sql_="""SELECT * 
-                FROM ?"""
-        para=(self.relational_representation())        
-        fetched_results=c.execute(sql_,para).fetchall()
+                FROM {}""".format(rr)
+        fetched_results=c.execute(sql_).fetchall()
         object_results=[]
         for result_ in fetched_results: 
             object_results.append(self.from_tuple(result_))
@@ -363,39 +443,59 @@ class Object2Relational:
         con.close()
         return object_results
     
-    def fetch_some(self,req_col_value_pair:list[tuple])->list: 
+    def fetch_some(self,*req_col_value_pair,order_by:str|None=None)->list: 
+            """fetch all the objects that meets the requirement in the database
+            
+            Arg: 
+                req_col_value_pair[list(tuple)]: a list of (col_name,col_value) tuples 
+            
+            Return: 
+                list: a list of python objects is returned
+            
+            Example: 
+            handler=fetch_some(('id>10',id),('h_code is not Null',h_code),order_by='id)
+            """
+            #connect to db
+            con=sqlite3.connect(self.db_path)
+            c=con.cursor()
+            
+            #prepare the sql    
+            rr=self.relational_representation()
+            where_statement=''
+            para=[]
+            for col_value_pair in req_col_value_pair: 
+                col_,val_=col_value_pair[0],col_value_pair[1]
+                where_statement=where_statement+col_+' '
+                para.append(val_)
+            
+            where_statement=where_statement[:-1]
+            
+            #the sql command and parameter
+            if order_by is not None: 
+                sql_="""
+                    SELECT * 
+                    FROM {}
+                    WHERE {}
+                    ORDER BY {}
+                    """.format(rr,where_statement,order_by)
+            else:
+                sql_="""
+                    SELECT * 
+                    FROM {}
+                    WHERE {}
+                    """.format(rr,where_statement)
+            fetched_result=c.execute(sql_,para).fetchall()
+            
+            #parse the tuple into object 
+            result_in_object=[]
+            for result_ in fetched_result: 
+                result_in_object.append(self.from_tuple(result_))
+            
+            #close the connection 
+            c.close()
+            con.close()        
+            return result_in_object
         
-        #connect to db
-        con=sqlite3.connect(self.db_path)
-        c=con.cursor()
-        
-        #prepare the sql 
-        rr=self.relational_representation
-        where_statement=''
-        para=[]
-        for col_value_pair in req_col_value_pair: 
-            col_,val_=col_value_pair
-            where_statement=where_statement+col_+'= ? AND'
-            para.append(val_)
-        
-        where_statement=where_statement[:-4]
-        
-        #the sql command and parameter
-        sql_="""SELECT * 
-                FROM {}
-                {}""".format(rr,where_statement)
-        
-        fetched_result=c.execute(sql_,tuple(para)).fetchall()
-        
-        #parse the tuple into object 
-        result_in_object=[]
-        for result_ in fetched_result: 
-            result_in_object.append(self.from_tuple(result_))
-        
-        #close the connection 
-        c.close()
-        con.close()        
-        return result_in_object
     
     def fetch_column_of_all(self,col_name:str)->list: 
         """fetch a column from all row 
@@ -409,12 +509,11 @@ class Object2Relational:
         
         #fetch all
         sql_="""
-                SELECT DISTINCT ?
-                FROM ? 
-                WHERE ? IS NOT NULL
-                """
-        para=(col_name,self.relational_representation(),col_name)
-        result_fetched=c.execute(sql_,para).fetchall()
+                SELECT DISTINCT {}
+                FROM {} 
+                WHERE {} IS NOT NULL
+                """.format(col_name,self.relational_representation(),col_name)
+        result_fetched=c.execute(sql_).fetchall()
         
         #parse from tuple to str
         result_in_val=[ele[0] for ele in result_fetched]
@@ -424,7 +523,7 @@ class Object2Relational:
         c.close()
         con.close()
         return result_in_val
-
+        
     def join_table_and_group_concat(self,foreign_class,foreign_col):
         """retreive a group concated values of a column in a foreign table; the main and foreign table have a 1-m relationship.
         
@@ -445,7 +544,7 @@ class Object2Relational:
         sql_="""SELECT id,GROUP_CONCAT({})
         FROM {}
         JOIN {} ON {}
-        GROUP BY id""".format(foreign_col,self.relational_representation,get_class_rr(foreign_class),key_sql)
+        GROUP BY id""".format(foreign_col,self.relational_representation(),get_class_rr(foreign_class),key_sql)
         
         result=c.execute(sql_).fetchall()
         c.close()
@@ -454,19 +553,23 @@ class Object2Relational:
         
 
         
-    def fetch_object_with_columns_values(self,*args,column_value_pair:list[tuple]|None=None,order_column=None,db_path:str=COMPANIES_DB)->list: 
-        """ fetch object in specified table grouped by sorting_column. 
-        e.g get_nd_list_with_order('language','subject','published_year',table=books,column_value_pair=[(on_sales,True)],db_path=amazon_books.sqlite)
+    def fetch_object_with_columns_values(self,*args,column_value_pair:dict={},order_column='id',flatten=False,db_path:str=COMPANIES_DB,)->list: 
+        """fetch object in specified table grouped by sorting_column. 
+        e.g get_nd_list_with_order('language','subject','published_year',{'on_sale':True},db_path=amazon_books.sqlite)
         This will return a 3-d list of books; result[i][j][k]=book in language[i],subject[j], published in year[k] and is currently on sale
-
         Args:
-            column_value_pair (list[tuple] | None, optional): a list of col_name,target_value tuple. Defaults to None.
-            order_column (_type_, optional): A single col to order by. Defaults to None.
+            
+            column_value_par(dict)= key is the column(e.g. title=?) value is the parameter value(e.g.three little pigs) Defaults to{}
+            order_column (str, optional): A single col to order by. Defaults to 'id.
+            flatten (bool, optional): _description_. Defaults to False.
             db_path (str, optional): sqlite filename. Defaults to COMPANIES_DB.
 
+
         Returns:
-            list: A need of n_d 
+            list: A list of n_d 
+
         """
+
         #define variable 
         table=self.relational_representation()
         
@@ -474,69 +577,86 @@ class Object2Relational:
         con=sqlite3.connect(db_path)
         c=con.cursor()
         
-        
         #get domain_size by dimension
         dimension_list=list(args) #[i][j][k]
+        args_length=len(dimension_list)
         domain_size_by_dimension=[] #size_i,size_j,size_k
         for dimension in dimension_list: 
-            size_=c.execute('''
-                            SELECT COUNT(DISTINCT ? )
-                            FROM ? 
-                            WHERE ? IS NOT NULL 
-                            ''',(dimension,table,dimension)).fetchall()[0][0]
+            size_=c.execute(
+                '''
+                SELECT COUNT(DISTINCT {} )
+                FROM {}
+                WHERE {} IS NOT NULL 
+                '''.format(dimension,table,dimension)
+            ).fetchall()[0][0]
             domain_size_by_dimension.append(size_)
-        
-        #get a nd_list with 0 value placeholder
-        result_nd_list=create_nd_list(domain_size_by_dimension)
-        
+            
         
         #get a list of distinct value of each column
         domain_in_each_dimension=[]
         for di_ in dimension_list:
-            domain_=c.execute('''
-                            SELECT DISTICT ?
-                            FROM ? 
-                            WHERE ? IS NOT NULL 
-                            ''',(di_,table,di_)).fetchall()
+            domain_=c.execute(
+                '''
+                SELECT DISTINCT {}
+                FROM {} 
+                WHERE {} IS NOT NULL 
+                '''.format(di_,table,di_)
+            ).fetchall()
             domain_=tuple(ele[0] for ele in domain_)
             domain_in_each_dimension.append(domain_)
-        
         #Get extra dimension for the req_col
         for i in range(len(column_value_pair)): 
-            domain_size_by_dimension.append(1)        
+            domain_size_by_dimension.append(1)   
         #Get a list of tuple containing the indexes [i][j][k]
-        indexes_iterable=iterate_indexes(domain_size_by_dimension)     
+        indexes_iterable=iterate_indexes(domain_size_by_dimension)
         
+        #get a nd_list with 0 value placeholder
+        result_nd_list=create_nd_list(domain_size_by_dimension,[])
+         
         #Add the re_col in the domain_in_each_dimension
-        for req_col,req_val in column_value_pair: 
+        for req_col,req_val in column_value_pair.items(): 
+            new_di=req_val,
             dimension_list.append(req_col)
-            domain_in_each_dimension.append(tuple(req_val))
+            domain_in_each_dimension.append(new_di)
+            
         for indexes in indexes_iterable:         
             data=[]
-            for i in len(indexes): 
-                data.append(domain_in_each_dimension[i][indexes[i]])
+            for i,index in enumerate(indexes): 
+                data.append(domain_in_each_dimension[i][index])
             target_columns_data=''
             target_columns_data=target_columns_data[0:-1]        
-            where_clause = ' AND '.join(f"{col} = ?" for col in dimension_list)        
+            where_clause_1 = ' AND '.join(f"{col} = ?" for col in dimension_list[0:args_length])
+            where_clause_2 = ' AND '.join(f"{col}" for col in dimension_list[args_length:])
+            if args_length==0: 
+                where_clause=where_clause_2
+            elif len(dimension_list)==args_length and args_length!=0: 
+                where_clause=where_clause_1
+            elif len(dimension_list)==args_length: 
+                where_clause='1=1'
+            else: 
+                where_clause=where_clause_1+' AND ' + where_clause_2
+                  
             
             sql_=f'SELECT * FROM {table} WHERE {where_clause} ORDER BY {order_column}'
             parameter_=data
             c.execute(sql_, parameter_)
             sql_results = c.fetchall()
             results_in_object=[]
-            class_init_fuc=  general_lookup(table,'from_tuple')
+            class_init_fuc= general_lookup(table,'from_tuple')
             for sql_result in sql_results:
                 results_in_object.append(class_init_fuc(sql_result))
             set_element_of_list_with_indexes(result_nd_list,indexes,results_in_object)
                             
         c.close()
         con.close()
+        if flatten: 
+            result_nd_list=flatten_list_element(result_nd_list,self.__class)
         return result_nd_list
 
 
     def fetch_col_by_requirements(self,*args,target_columns:list[str]|tuple[str],column_value_pair:list[tuple]|None=None,order_column=None,db_path:str=COMPANIES_DB)->list: 
         """ get target_columns in a table grouped by sorting_column. 
-        e.g get_nd_list_with_order('language','subject','published_year',target_columns=(author,sales),table=books,column_value_pair=[(on_sales,True)]db_path=amazon_books.sqlite)
+        e.g get_nd_list_with_order('language','subject','published_year',target_columns=['author','sales'],column_value_pair=[('on_sales=?',True)]db_path=amazon_books.sqlite)
         This will return a 3-d list of two elements tuples; result[i][j][k]=(author_instance,sales_instance) where author_instance published a book in language[i] of subject[j], in year published_year[k] and is currently on sale
 
         Args:
@@ -559,10 +679,12 @@ class Object2Relational:
         dimension_list=list(args) #[i][j][k]
         domain_size_by_dimension=[] #size_i,size_j,size_k
         for dimension in dimension_list: 
-            size_=c.execute('''
-                            SELECT COUNT(DISTINCT ? )
-                            FROM ? 
-                            ''',(dimension,table)).fetchall()[0][0]
+            size_=c.execute(
+                '''
+                SELECT COUNT(DISTINCT {} )
+                FROM {} 
+                '''.format(dimension,table)
+            ).fetchall()[0][0]
             domain_size_by_dimension.append(size_)
         
         #get a nd_list with 0 value placeholder
@@ -572,10 +694,12 @@ class Object2Relational:
         #get a list of distinct value of each column
         domain_in_each_dimension=[]
         for di_ in dimension_list:
-            domain_=c.execute('''
-                            SELECT DISTICT ?
-                            FROM ? 
-                            ''',(di_,table)).fetchall()
+            domain_=c.execute(
+                '''
+                SELECT DISTINCT {}
+                FROM {} 
+                '''.format(di_,table)
+            ).fetchall()
             domain_=tuple(ele[0] for ele in domain_)
             domain_in_each_dimension.append(domain_)
         
@@ -597,7 +721,7 @@ class Object2Relational:
             for ele in target_columns: 
                 target_columns_data=target_columns_data+ele+','
             target_columns_data=target_columns_data[0:-1]        
-            where_clause = ' AND '.join(f"{col} = ?" for col in dimension_list)        
+            where_clause = ' AND '.join(f"{col}" for col in dimension_list)        
             
             sql_=f'SELECT{target_columns} FROM {table} WHERE {where_clause} ORDER BY {order_column}'
             parameter_=data

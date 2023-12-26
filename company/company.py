@@ -7,29 +7,53 @@ from master_dictionary.master_dictionary import MasterDictionary
 
 class Company: 
     REFERENCE_TABLE={}
+    
     @classmethod
     def rational_representation(cls)->str:
         return 'company'
+    
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        return 'company(h_code,a_code,zh_name,en_name)'
+    
     @classmethod
     def db_insert_col(cls) ->str:
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         return """INSERT INTO company(h_code,a_code,zh_name,en_name)
                 VALUES(?,?,?,?)
-                """
+                """        
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
         
-
-
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        return """INSERT OR IGNORE INTO company(h_code,a_code,zh_name,en_name)
+                VALUES(?,?,?,?)
+                """ 
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
-    def __init__(self,h_code:str,a_code:str,zh_name:str,en_name:str,id:int|None=None): 
-        
+        return result 
+    
+    @classmethod
+    def reformat_h_code(cls,h_code:str): 
+        partition=h_code.split('.')
+        if len(partition)==1: 
+            h_code=h_code+'.hk'
+        numeric_code=h_code.split('.')[0]
+        if len(numeric_code)==4: 
+            h_code='0'+h_code
+        return h_code.lower()
+    
+    def __init__(self,h_code:str,a_code:str,zh_name:str,en_name:str,id:int|None=None):         
         """
         h_code format:4digit number with prefixing 0 and .HK 
         a_code format: 6digit number with prefixing 0 and .SH/.SZ
@@ -39,19 +63,18 @@ class Company:
         self.__a_code=a_code        
         self.__zh_name=zh_name
         self.__en_name=en_name  
-        
         self.__id=id
+        
     @classmethod
     def from_tuple(cls,cp_tuple)->'Company':
         if len(cp_tuple)==5 :
             h_code,a_code,zh_name,en_name,id_=cp_tuple
-    
         elif len(cp_tuple)==4: 
             h_code,a_code,zh_name,en_name=cp_tuple
             id_=None
+            
         result=Company(h_code,a_code,zh_name,en_name,id_)
-        return result
-        
+        return result        
 
     @property
     def h_code(self)->str: 
@@ -89,7 +112,7 @@ class Company:
     @property
     def id(self):
         if self.__id is None: 
-            raise AttributeError('id is not setted'+'/n'+self.to_dict())
+            raise AttributeError('id is not setted')
         return self.__id
     
     #set function
@@ -108,7 +131,7 @@ class Company:
             "hcode":self.h_code,
             "acode":self.a_code,
             'id':self.__id
-                }
+        }
     def to_tuple(self)->tuple:
         """
         result[tuple]:h_code,a_code,zh_name,en_name,id
@@ -122,23 +145,142 @@ class Company:
             tuple: (self.h_code,self.a_code,self.zh_name,self.en_name)
         """
         return (self.h_code,self.a_code,self.zh_name,self.en_name)
-    
-class Keyword:
+
+class CompanyMining:
     REFERENCE_TABLE={
         'company':[('id','company_id')]
     }
     @classmethod
-    def rational_representation(cls)->str:
-        return 'keyword'
+    def rational_representation(cls)->str: 
+        return 'company_mining'   
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
-        sql="""INSERT INTO KEYWORD(keyword,h_code,a_code,zh_name,en_name,company_id)
-                VALUES(?,?,?,?,?,?)"""
+        return """INSERT INTO company_mining(document_flag,gnews_flag,company_id)
+                VALUES(?,?,?)
+                """  
+                
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        return """INSERT OR IGNORE INTO company_mining(document_flag,gnews_flag,company_id)
+                VALUES(?,?,?)
+                """ 
+    
+    @classmethod
+    def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
+        result=cls.REFERENCE_TABLE.get(main_table_rr,None)
+        if result==None: 
+            raise(ValueError(f"the main table{main_table_rr} is not linked to {cls}"))
+        return result 
+        
+    def __init__(self,document_flag:int=0,gnews_flag:int=0,id:int|None=None,company_id:int|None=None): 
+        self.__document_flag=document_flag 
+        self.__gnews_flag=gnews_flag
+        self.__id=id 
+        self.__company_id=company_id
+    
+    @classmethod
+    def from_tuple(cls,*tuple)->'CompanyMining':
+        col=list(*tuple)
+        if len(col)==4: 
+            document_flag,gnews_flag,id_,company_id=col[0],col[1],col[2],col[3]
+        elif len(col)==3: 
+            document_flag,gnews_flag,company_id=col[0],col[1],col[2]
+            id_=None
+        result=CompanyMining(document_flag,gnews_flag,id_,company_id)
+        return result
+    
+    @property
+    def document_flag(self):
+        return self.__document_flag
+    @property
+    def gnews_flag(self):
+        return self.__gnews_flag
+    @property
+    def id(self):
+        if self.__id==None: 
+            raise(AttributeError('self.__id is not setted'))
+        return self.__id
+    @property
+    def company_id(self):
+        if self.__company_id==None:
+            raise(AttributeError('self.__company_id is not setted'))
+        return self.__company_id
+    
+    def set_id(self,id_:int): 
+        self.__id=id_
+        
+    def set_company_id(self,company_id:int): 
+        self.__company_id=company_id
+    
+    def to_dict(self)->dict: 
+        return {
+            "document_flag":self.document_flag,
+            "gnews_flag":self.gnews_flag, 
+            "id":self.__id,
+            "company_id":self.__company_id,
+        }
+        
+    def to_tuple(self)->tuple:
+        """
+        result[tuple]:document_flag,gnews_flag,id,company_id
+        """
+        return(self.document_flag,self.gnews_flag,self.__id,self.__company_id)
+    
+    def to_insert_para(self)->tuple: 
+        """?document_flag,?gnews_flag,?company_id
+
+        Returns:
+            tuple: (self.document_flag,self.gnews_flag,self.__company_id)
+        """
+        return (self.document_flag,self.gnews_flag,self.__company_id)
+class Keyword:
+    REFERENCE_TABLE={
+        'company':[('id','company_id')]
+    }
+    
+    @classmethod
+    def rational_representation(cls)->str:
+        return 'keyword'
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
+    @classmethod
+    def db_insert_col(cls)->str: 
+        """generate the sql for Insert row to db
+
+        Returns:
+            str: The sql_ with ? place holder for insert row 
+        """
+        sql="""INSERT INTO keyword(keyword,company_id)
+                VALUES(?,?)"""
+        return sql
+    
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO keyword(keyword,company_id)
+                VALUES(?,?)"""
         return sql
     
     @classmethod
@@ -146,28 +288,24 @@ class Keyword:
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
-    def __init__(self,keyword:list,h_code:str,a_code:str,zh_name:str,en_name:str,id:int|None=None,company_id:int|None=None):
-        self.__keyword=keyword
-        self.__h_code=h_code
-        self.__a_code=a_code
-        self.__zh_name=zh_name
-        self.__en_name=en_name
-        
+    def __init__(self,keyword:str,id:int|None=None,company_id:int|None=None):
+        self.__keyword=keyword        
         self.__id=id
         self.__company_id=company_id       
     
     @classmethod
     def from_tuple(cls,keyword_tuple:tuple)->'Keyword':
-        if len(keyword_tuple)==7: 
-            keyword,h_code,a_code,zh_name,en_name,id_,company_id=keyword_tuple
+        if len(keyword_tuple)==3: 
+            keyword,id_,company_id=keyword_tuple
             
-        elif len(keyword_tuple)==6:
-            keyword,h_code,a_code,zh_name,en_name,id_=keyword_tuple
+        elif len(keyword_tuple)==2:
+            keyword,company_id=keyword_tuple
             id_=None
         else: 
-            raise(ValueError(f"keyword tuple {keyword_tuple} should either have length of 6 or 7"))
-        result=Keyword(keyword,h_code,a_code,zh_name,en_name,id_,company_id)
+            raise(ValueError(f"keyword tuple {keyword_tuple} should either have length of 3 or 2"))
+        result=Keyword(keyword,id_,company_id)
         return result
         
     
@@ -175,23 +313,9 @@ class Keyword:
     def keyword(self):
         return self.__keyword
     @property
-    def h_code(self):
-        return self.__h_code
-    @property
-    def a_code(self):
-        return self.__a_code
-    @property
-    def zh_name(self):
-        return self.__zh_name
-    @property
-    def en_name(self):
-        return self.__en_name
-    @property
-    def keyword_str(self): 
-        result=''
-        for keyword in self.keyword:
-            result=result+keyword+','
-        return result[0:-1]
+    def keyword(self):
+        return self.__keyword
+    
     
     #db
     @property
@@ -214,54 +338,69 @@ class Keyword:
     
     def to_dict(self)->dict:
         return {
-            'keyword':self.keyword_str,
-            'h_code':self.h_code,
-            'a_code':self.a_code,
-            'zh_name':self.zh_name,
-            'en_name':self.en_name,
+            'keyword':self.keyword,
             'id':self.__id,
             'company_id':self.__company_id
         } 
     def to_tuple(self)->tuple:
         """
-        return: (keyword,h_code,a_code,zh_name,en_name,id,company_id)
+        return: (keyword,id,company_id)
         """
-        return(self.keyword,self.h_code,self.a_code,self.zh_name,self.en_name,self.__id,self.__company_id)
+        return(self.keyword,self.__id,self.__company_id)
     
     def to_insert_para(self)->tuple: 
-        """ ?keyword,?h_code,?a_code,?zh_name,?en_name,?company_id)
+        """ ?keyword,?company_id)
 
         Returns:
-            tuple: (keyword,h_code,a_code,zh_name,en_name,company_id)
+            tuple: (keyword,company_id)
         """
-        return (self.h_code,self.a_code,self.zh_name,self.en_name)
+        return (self.keyword,self.company_id)
+    
 class IndexCompany: 
     REFERENCE_TABLE={}
     
     @classmethod
     def rational_representation(cls)->str:
         return 'index_company'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
-        sql="""INSERT INTO index_company(flag,listed_region,index_name,index_code)
+        sql="""INSERT INTO index_company(flag,listed_region,name,code)
                 VALUES(?,?,?,?)"""
         return sql
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO index_company(flag,listed_region,name,code)
+                VALUES(?,?,?,?)"""
+        return sql
+    
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
-    def __init__(self,flag:str,listed_region:str,index_name:str,index_code:str,id:int|None=None):
+    def __init__(self,flag:str,listed_region:str,name:str,code:str,id:int|None=None):
         self.__flag=flag 
         self.__listed_region=listed_region
-        self.__name=index_name
-        self.__code=index_code
+        self.__name=name
+        self.__code=code
         
         self.__id=id
         
@@ -335,22 +474,39 @@ class Pricing:
     @classmethod
     def rational_representation(cls)->str:
         return 'pricing'  
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO pricing(date,open,high,low,close,adjusted_close,volume,flag,listed_region,company_id,index_company_id)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?)"""
-                
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)"""                
         return sql
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO pricing(date,open,high,low,close,adjusted_close,volume,flag,listed_region,company_id,index_company_id)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)"""                
+        return sql
+    
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
       
     def __init__(self,date_:str,open:float,high:float,low:float,close:float,adjusted_close:float,volume:float,flag:str,listed_region:str,id:int|None=None,company_id:int|None=None,index_company_id:int|None=None) :
         if type(date_)==str: 
@@ -361,7 +517,11 @@ class Pricing:
         self.__high=float(high)
         self.__low=float(low)
         self.__close=float(close)
-        self.__adjusted_close=float(adjusted_close)
+        if adjusted_close is not None:
+            self.__adjusted_close=float(adjusted_close)
+        else: 
+            self.__adjusted_close=None
+            
         self.__volume=float(volume)
         self.__flag=flag
         self.__listed_region=listed_region
@@ -484,14 +644,30 @@ class Return:
     @classmethod
     def rational_representation(cls)->str:
         return 'return'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str:
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO return(date,return,type,flag,listed_region,company_id,index_company_id,pricing_id)
+                VALUES(?,?,?,?,?,?,?,?)"""
+        return sql 
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO return(date,return,type,flag,listed_region,company_id,index_company_id,pricing_id)
                 VALUES(?,?,?,?,?,?,?,?)"""
         return sql 
     
@@ -500,6 +676,7 @@ class Return:
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,date_:str,return_:float,type_:str,flag:str,listed_region:str,id:int|None=None,company_id:int|None=None,index_company_id:int|None=None,pricing_id:int|None=None):
         #vital attribute
@@ -622,20 +799,40 @@ class Car3:
     @classmethod
     def rational_representation(cls)->str:
         return 'car3'     
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the snippet of sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
-        return 'date,car3,flag,company_id,last_day_return_id,today_return_id,next_day_return_id'
+        sql="""INSERT INTO car3(date,car3,flag,company_id,last_day_return_id,today_return_id,next_day_return_id)
+                VALUES(?,?,?,?,?,?,?,?)"""        
+        return sql
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO car3(date,car3,flag,company_id,last_day_return_id,today_return_id,next_day_return_id)
+                VALUES(?,?,?,?,?,?,?,?)"""        
+        return sql
     
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
+    
     def __init__(self,date:str,car3:str,flag:str,id:int|None=None,company_id:int|None=None,last_day_return_id:int|None=None,today_return_id:int|None=None,next_day_return_id:int|None=None):
         self.__date=date
         self.__car3=car3 
@@ -734,22 +931,39 @@ class Article:
     @classmethod
     def rational_representation(cls)->str:
         return 'article'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
     
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO article(url,title,published_at,api,content)
                 VALUES(?,?,?,?,?)"""
         return sql
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO article(url,title,published_at,api,content)
+                VALUES(?,?,?,?,?)"""    
+        return sql
+    
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,url:str,title:str,published_at:datetime|str,api:str,content:str,id:int|None=None):
         self.__url=url 
@@ -866,22 +1080,39 @@ class Query:
     @classmethod
     def rational_representation(cls)->str:
         return 'query'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
     
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO query(query,article_id)
                 VALUES(?,?)"""
-        return 'query,article_id'
+        return sql 
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO query(query,article_id)
+                VALUES(?,?)"""
+        return sql 
+    
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,query:str,id_:int|None=None, article_id:int|None=None): 
         self.__query=query
@@ -935,23 +1166,39 @@ class Document:
     @classmethod
     def rational_representation(cls)->str:
         return 'document'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
     
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO document(url,title,published_at,source,content,company_id)
                 VALUES(?,?,?,?,?,?)"""
         return sql 
-    
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO document(url,title,published_at,source,content,company_id)
+                VALUES(?,?,?,?,?,?)"""
+        return sql 
+
     @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,url:str,title:str,published_at:datetime|str,source:str,content:str,id:int|None=None,company_id:int|None=None):
         self.__url=url 
@@ -961,7 +1208,8 @@ class Document:
         elif type(published_at)==str:
             self.__published_at=published_at
         else:
-            raise(TypeError("published_at should be of type datetime, not{}".format(type(published_at))))
+            self.__published_at=None
+            
         self.__source=source
         self.__content=content        
         #db 
@@ -976,8 +1224,9 @@ class Document:
             url_,title_,published_at_,api_,content_,company_id_=article_tuple
             id_=None
         else: 
-            raise(ValueError(f'article_tuple {article_tuple} should either have len of 5 or 6'))
-        result=Article(url_,title_,published_at_,api_,content_,id_,company_id_)
+            raise(ValueError(f'document_tuple {article_tuple} should either have len of 5 or 6'))
+        result=Document(url_,title_,published_at_,api_,content_,id_,company_id_)
+    
         return result
     
     @property
@@ -1004,6 +1253,8 @@ class Document:
     
     @property
     def company_id(self):
+        if self.__company_id is None: 
+            raise AttributeError("company_id is not setted /n"+self.to_dict())
         return self.__company_id
     
     #set function
@@ -1011,6 +1262,20 @@ class Document:
          self.__id=id
     def set_company_id(self,company_id_:int)->None:
         self.__company_id=company_id_
+    def set_content(self,content:str)->None:
+        self.__content=content
+    def set_published_at(self,published_at)->None: 
+        if type(published_at)==datetime:
+            self.__published_at=published_at.isoformat()
+        elif type(published_at)==str:
+            self.__published_at=published_at
+        else:
+            print("Warning: published_at should be of type datetime, not{}".format(type(published_at)))
+            print(f"url{self.url}")
+            self.__published_at=None
+        
+    def set_url(self,url:str)->None: 
+        self.__url=url
     
     def to_dict(self)->dict: 
         return{
@@ -1030,10 +1295,11 @@ class Document:
     
     def to_insert_para(self)->tuple:
         """
-        ?url,?title,?published_at,?source,?content
-        return[tuple]: (self.url,self.title,self.published_at,self.source,self.content)
+        ?url,?title,?published_at,?source,?content,?company_id
+        return[tuple]: (self.url,self.title,self.published_at,self.source,self.content,self.company_id)
         """
-        return (self.url,self.title,self.published_at,self.source,self.content)
+        
+        return (self.url,self.title,self.published_at,self.source,self.content,self.company_id)
 
     def get_tonescore(self)->'Tonescore': 
         from master_dictionary.master_dictionary import MasterDictionary,load_masterdictionary,ToneNertral
@@ -1077,23 +1343,39 @@ class Tonescore:
     @classmethod
     def rational_representation(cls)->str:
         return 'tonescore'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
     
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO tonescore(tonescore,positive_score,negative_score,url,title,published_at,api,article_id,document_id')
                 VALUES(?,?,?,?,?,?,?,?,?)"""
         return sql
 
     @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO tonescore(tonescore,positive_score,negative_score,url,title,published_at,api,article_id,document_id')
+                VALUES(?,?,?,?,?,?,?,?,?)"""
+        return sql
+    
+    @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,tonescore:float,positive_score:float,negative_score:float,url:str,title:str,published_at:datetime,api:str,id:int|None=None,article_id:int|None=None,document_id:int|None=None):        
         self.__tonescore=tonescore
@@ -1206,22 +1488,38 @@ class MentionIn:
     def rational_representation(cls)->str:
         return 'mention_in'    
     
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO mention_in(url,h_code,article_id,company_id)
                 VALUES(?,?,?,?)"""
         return sql
 
     @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO mention_in(url,h_code,article_id,company_id)
+                VALUES(?,?,?,?)"""
+        return sql
+    
+    @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,url:str,h_code:str,id:int|None=None,article_id:int|None=None,company_id:int|None=None):        
         self.__url=url
@@ -1308,22 +1606,39 @@ class Affecting:
     @classmethod
     def rational_representation(cls)->str:
         return 'affecting'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO affecting(article_id,car3_id,return_id,company_id)
                 VALUES(?,?,?,?)"""
         return sql
 
     @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO affecting(article_id,car3_id,return_id,company_id)
+                VALUES(?,?,?,?)"""
+        return sql
+    
+    @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,id:int|None=None,article_id:int|None=None,car3_id:int|None=None,return_id:int|None=None,company_id:int|None=None): 
         self.__id=id
@@ -1408,22 +1723,39 @@ class Causing:
     @classmethod
     def rational_representation(cls)->str:
         return 'causing'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
     @classmethod
     def db_insert_col(cls)->str: 
         """generate the sql for Insert row to db
 
         Returns:
-            Documentstr: the str between INSERT and VALUES
+            str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO causing(document_id,car3_id,return_id,company_id)
                 VALUES (?,?,?,?)"""
         return sql 
 
     @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO causing(document_id,car3_id,return_id,company_id)
+                VALUES (?,?,?,?)"""
+        return sql 
+    
+    @classmethod
     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
         
     def __init__(self,id:int|None=None,document_id:int|None=None,car3_id:int|None=None,return_id:int|None=None,company_id:int|None=None): 
         self.__id=id

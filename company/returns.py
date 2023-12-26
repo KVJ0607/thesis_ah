@@ -22,27 +22,28 @@ def cal_adjusted_daily_returns(flatten_result=False,db_path=COMPANIES_DB)->list[
     all_companies_adjusted_daily_return=[]
     
     for pricing_of_one_company in all_pricing_by_company: 
-        company_adjusted_daily_return=[]        
-        yesterday_adjusted_close=None
-        for pricing_in_one_day in pricing_of_one_company:
-            date_,open,high,low,close,adjusted_close,volume,flag,listed_region,pricing_id,company_id,index_company_id=pricing_in_one_day.to_tuple()
-            if len(company_adjusted_daily_return)==0: 
-                yesterday_adjusted_close=adjusted_close
-            else: 
-                adjusted_daily_return=(adjusted_close-yesterday_adjusted_close)/yesterday_adjusted_close
-                yesterday_adjusted_close=adjusted_close
-                company_adjusted_daily_return.append(Return.from_tuple((date_,adjusted_daily_return,'adjusted_daily_return',flag,listed_region,company_id,index_company_id,pricing_id)))
-        
-        all_companies_adjusted_daily_return=all_companies_adjusted_daily_return+company_adjusted_daily_return
+        for pricing_of_one_flag in pricing_of_one_company:
+            company_adjusted_daily_return=[]  
+            for i,pricing_in_one_day in enumerate(pricing_of_one_flag):
+                yesterday_adjusted_close=None                
+                date_,open,high,low,close,adjusted_close,volume,flag,listed_region,pricing_id,company_id,index_company_id=pricing_in_one_day.to_tuple()
+                if i==0: 
+                    yesterday_adjusted_close=adjusted_close
+                else: 
+                    adjusted_daily_return=(adjusted_close-yesterday_adjusted_close)/yesterday_adjusted_close
+                    yesterday_adjusted_close=adjusted_close
+                    company_adjusted_daily_return.append(Return.from_tuple((date_,adjusted_daily_return,'adjusted_daily_return',flag,listed_region,company_id,index_company_id,pricing_id)))
+            
+            all_companies_adjusted_daily_return=all_companies_adjusted_daily_return+company_adjusted_daily_return
 
         
     #calculate all returns by index_company and by date 
     for index_pricing_in_one_company in all_index_pricing_by_company: 
         index_company_adjusted_daily_return=[]
         yesterday_adjusted_close=None
-        for index_pricing_in_one_day in index_pricing_in_one_company: 
-            date_,open,high,low,close,adjusted_close,volume,flag,listed_region,pricing_id,company_id,index_company_id=pricing_in_one_day.to_tuple()
-            if len(index_company_adjusted_daily_return)==0: 
+        for i,index_pricing_in_one_day in enumerate(index_pricing_in_one_company): 
+            date_,open,high,low,close,adjusted_close,volume,flag,listed_region,pricing_id,company_id,index_company_id=index_pricing_in_one_day.to_tuple()
+            if i==0: 
                 yesterday_adjusted_close=adjusted_close
             else: 
                 adjusted_daily_return=(adjusted_close-yesterday_adjusted_close)/yesterday_adjusted_close
@@ -74,8 +75,8 @@ def cal_abnormal_returns(flatten_result=False,db_path=COMPANIES_DB)->list[list[R
                     
     result:list[list[tuple]]=[]
     return_handler=Object2Relational(Return,db_path)
-    all_return_in_class_by_company=return_handler.fetch_object_with_columns_values('company_id','flag',column_value_pair=[('type','adjusted_daily_return')],order_column='date')
-    all_return_in_class_by_index_company=return_handler.fetch_object_with_columns_values('index_company_id',column_value_pair=[('type','adjusted_daily_return')],order_column='date')
+    all_return_in_class_by_company=return_handler.fetch_object_with_columns_values('company_id','flag',**{'type=?':'adjusted_daily_return'},order_column='date')
+    all_return_in_class_by_index_company=return_handler.fetch_object_with_columns_values('index_company_id',**{'type=?':'adjusted_daily_return'},order_column='date')
                 
     #hsce sse szse
     for all_company_return_in_class in all_return_in_class_by_company: 
@@ -104,7 +105,7 @@ def cal_car3s(flatten_result=False,db_path=COMPANIES_DB)->list[list[list[Car3]]]
     #define a handler 
     return_handler=Object2Relational(Return,db_path)
     
-    col_val_pair=[('type','abnormal_return')]
+    col_val_pair=[('type = ?','abnormal_return = ?')]
     target_col=['date','return','flag','id','company_id']
     ab_return=return_handler.fetch_col_by_requirements('company_id','flag',target_columns=target_col,column_value_pair=col_val_pair,order_column='date')
     result_list=[]

@@ -9,7 +9,7 @@ from http.client import InvalidURL
 
 from utils.constant import GNEWS_KEYS
 from company.company import *
-from company.orm import Object2Relational,object2relational_commit
+from company.orm import Object2Relational,object2relational_insert_commit
 
 class GnewsRequest: 
     EndPoint_Template='https://gnews.io/api/v4/serarch?{}'
@@ -268,17 +268,17 @@ def request_with_keyword(db_path=COMPANIES_DB)->None:
         gnews_results=single_gnew_request(g_request)
         for gnews_result in gnews_results: 
             gnews_result.set_query(query)
-            article_exist=article_handler.check_if_exist('url',gnews_result.url)
+            article_exist=article_handler.check_if_exist('url = ?',gnews_result.url)
             if not article_exist: 
                 article_handler.commit(gnews_result)
-            article_id=article_handler.fetch_some(['url',gnews_result.url])[0].id
-            query_exist=query_handler.check_if_exist_unique_tuples([('query',query),('article_id',article_id)])
+            article_id=article_handler.fetch_some(['url = ?',gnews_result.url])[0].id
+            query_exist=query_handler.check_if_exist_unique_tuples([('query = ?',query),('article_id',article_id)])
             if not query_exist: 
                 query_object=Query(query,None,article_id)
                 query_handler.commit(query_object)
-            mention_exist=mention_in_handler.check_if_exist_unique_tuples([('article_id',article_id),('company_id',company_id)])
+            mention_exist=mention_in_handler.check_if_exist_unique_tuples([('article_id = ?',article_id),('company_id',company_id)])
             if not mention_exist: 
-                h_code=company_handler.fetch_some([('id',company_id)])[0].id
+                h_code=company_handler.fetch_some([('id = ?',company_id)])[0].id
                 mi_object=MentionIn(gnews_result.url,h_code,None,article_id,company_id)
                 mention_in_handler.commit(mi_object)
 
@@ -319,16 +319,16 @@ def request_with_keyword_old(is_commit=False,db_path=COMPANIES_DB)->dict[str,lis
         for cp_id,gnews in cp_gnews_results.items(): 
             #loop though all news in a company
             for one_gnews in gnews: 
-                article_exist=article_handler.check_if_exist('url',one_gnews.url)
+                article_exist=article_handler.check_if_exist('url = ?',one_gnews.url)
                 if not article_exist: 
                     article_handler.commit(one_gnews)
                     
                     #url,h_code,,article_id,company_id
                     url=one_gnews.url
-                    h_code=company_handler.fetch_some([('id',cp_id)])[0].h_code
-                    article_id=article_handler.fetch_some([('url',url)])[0].id
+                    h_code=company_handler.fetch_some([('id = ?',cp_id)])[0].h_code
+                    article_id=article_handler.fetch_some([('url = ?',url)])[0].id
                     mi_object=MentionIn(url,h_code,None,article_id,cp_id)
-                    mention_exist=mention_in_handler.check_if_exist_unique_tuples([('article_id',article_id),('company_id',cp_id)])
+                    mention_exist=mention_in_handler.check_if_exist_unique_tuples([('article_id = ?',article_id),('company_id',cp_id)])
                     if not mention_exist: 
                         mention_in_handler.commit(mi_object)
                     
