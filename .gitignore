@@ -37,3 +37,5 @@ api_key.txt
 #Instance-specific files
 instance/
 temp*
+api_key
+old_code/
