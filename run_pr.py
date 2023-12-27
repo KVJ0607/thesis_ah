@@ -4,6 +4,8 @@ from article.press_release import *
 from utils.constant import COMPANIES_DB
 
 def documents_commit(docs:list[Document]):
+    refined_docs=[redoc for redoc in docs if redoc.url is not None ]
+    print(refined_docs[0].company_id,f" len of doc:{len(refined_docs)}")
     con=sqlite3.connect(COMPANIES_DB)
     c=con.cursor()
     sql_="""
@@ -15,9 +17,10 @@ def documents_commit(docs:list[Document]):
         source = excluded.source ,
         content = excluded.content
         """
-    for doc in docs: 
-        para=(doc.url,doc.title,doc.published_at,doc.source,doc.content,doc.company_id)
+    for redoc in refined_docs: 
+        para=(redoc.url,redoc.title,redoc.published_at,redoc.source,redoc.content,redoc.company_id)
         c.execute(sql_,para)
+        
     con.commit()
     c.close()
     con.close()
@@ -78,45 +81,46 @@ def documents_commit(docs:list[Document]):
 #     print(my_doc_.title," ",my_doc_.published_at )
 # documents_commit(temp_doc)
 
-temp_doc=Cp_9().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc)
+# temp_doc=Cp_9().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc)
 
 
-temp_doc=Cp_10().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc)
-print('success')
-"""
-temp_doc=Cp_11().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc)
+# temp_doc=Cp_10().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc)
 
 
-temp_doc=Cp_12().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc)
+# temp_doc=Cp_11().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc)
 
-temp_doc=Cp_13().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc)
+
+# temp_doc=Cp_12().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc)
+
+
+# temp_doc=Cp_13().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc)
 
 temp_doc=Cp_14().crawling()
 for my_doc_ in temp_doc: 
     print(my_doc_.url)
     print(my_doc_.title," ",my_doc_.published_at )
 documents_commit(temp_doc)
-
+"""
 temp_doc=Cp_15().crawling()
 for my_doc_ in temp_doc: 
     print(my_doc_.url)

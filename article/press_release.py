@@ -29,7 +29,7 @@ class Cp_1(PressRelease):
         #robot.txt=None
     
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str): 
+    def retrieve_content(url:str, error_count:int): 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -38,19 +38,19 @@ class Cp_1(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
+            return None
         except InvalidArgumentException:
             print("invalidArguement ",url)
             try:
-                driver_connect(driver2,press_release_url+url)
+                driver_connect(driver2,url)
             except InvalidArgumentException: 
                 driver2.close()
-                return ''
+                return None
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body div.Research_center_box div.early_box').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return target_ele
@@ -94,6 +94,7 @@ class Cp_1(PressRelease):
         driver.execute_script("arguments[0].click();", button)
     
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument("--headless")        
         #driver = webdriver.Chrome(options=chrome_options)
@@ -126,7 +127,7 @@ class Cp_1(PressRelease):
 
         all_doc:list[Document]=[]
         while current_page<=total_page: 
-            page_doc=self.read_page(driver)
+            page_doc=self.read_page(driver,error_count)
             all_doc=all_doc+page_doc
             if current_page<total_page:
                 self.next_page(driver)
@@ -142,7 +143,7 @@ class Cp_2(PressRelease):
         super().__init__(base_url,press_release_url,h_code)
         #robot.txt=None
 
-    def retrieve_content(press_release_url:str,url:str): 
+    def retrieve_content(url:str, error_count:int): 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         driver2 = webdriver.Chrome(options=chrome_options)        
@@ -150,19 +151,19 @@ class Cp_2(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
+            return None
         except InvalidArgumentException:
             print("Invalid Arguement",url)
             try:
-                driver_connect(driver2,press_release_url+url)
+                driver_connect(driver2,url)
             except InvalidArgumentException: 
                 driver2.close()
-                return ''
+                return None
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#mm-0>div.nybody_box').text
         except NoSuchElementException:
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         
@@ -174,7 +175,7 @@ class Cp_2(PressRelease):
     def get_total_page(self,driver:WebDriver)->int:
         return 1
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         ul_ele=driver.find_element(By.CSS_SELECTOR,'#mm-0>div.nybody_box>div.wrap>div.nybox_box>div.nybox_right>ul.nynews_box')
         li_ele=ul_ele.find_elements(By.CSS_SELECTOR,'li')
         document_list:list[Document]=[]
@@ -200,6 +201,7 @@ class Cp_2(PressRelease):
         pass
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -222,7 +224,7 @@ class Cp_2(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(driver)
@@ -254,7 +256,7 @@ class Cp_3(PressRelease):
         return int(target_ele)
     
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:        
+    def retrieve_content(url:str, error_count:int)->str:        
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -262,31 +264,25 @@ class Cp_3(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.wrap').text
         except NoSuchElementException:
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         
         return target_ele
         
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body>div.wrap>ul.support_list')))
         rows=target_ele.find_elements(By.CSS_SELECTOR,'li')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             a_tag = row_.find_element(By.TAG_NAME, 'a')
             date_in_iso = a_tag.find_element(By.TAG_NAME, 'span').text  
             url = a_tag.get_attribute('href')  
@@ -306,6 +302,7 @@ class Cp_3(PressRelease):
         driver.execute_script("arguments[0].click();", button)
 
     def crawling(self)->list[Document]:
+        error_count=0
         # chrome_options = Options()
         # chrome_options.add_argument('--headless')
         # driver = webdriver.Chrome(options=chrome_options)
@@ -328,7 +325,7 @@ class Cp_3(PressRelease):
         current_page=1
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(driver)
@@ -355,32 +352,28 @@ class Cp_4(PressRelease):
         return 6
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.XPATH,'/html/body/table/tbody/tr/td/table[2]/tbody/tr/td[1]/table/tbody/tr/td[2]/table/tbody/tr[3]/td[2]').text
         except NoSuchElementException:
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body>table>tbody>tr>td')))
         target_ele=target_ele.find_elements(By.TAG_NAME,'table')[1]
@@ -389,7 +382,7 @@ class Cp_4(PressRelease):
         rows=target_ele.find_elements(By.CSS_SELECTOR,'li')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             html_content = row_.get_attribute('outerHTML')
             # Parse the HTML
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -431,6 +424,7 @@ class Cp_4(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         # chrome_options = Options()
         # chrome_options.add_argument('--headless')
         # driver = webdriver.Chrome(options=chrome_options)
@@ -453,7 +447,7 @@ class Cp_4(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -471,6 +465,7 @@ class Cp_5(PressRelease):
         #robot.txt=None
 
     def crawling(self)->list[Document]:
+        error_count=0
         return []
     
 class Cp_6(PressRelease):
@@ -488,40 +483,36 @@ class Cp_6(PressRelease):
         return 112
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.XPATH,'/html/body/div[4]/div/div[2]/div[2]').text
         except NoSuchElementException:
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         
         return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.XPATH,'/html/body/div[4]/div/div[2]/div[2]/ul')))  
         rows=target_ele.find_elements(By.TAG_NAME,'li')
 
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             title=row_.find_element(By.CSS_SELECTOR,'div.LiRight>h4>a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.LiRight>h4>span').text
             date_in_iso='20'+date_in_iso
@@ -543,6 +534,7 @@ class Cp_6(PressRelease):
         
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -565,7 +557,7 @@ class Cp_6(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(driver)
@@ -595,7 +587,7 @@ class Cp_7(PressRelease):
         return int(tot_page)
 
     @staticmethod
-    def retrieve_content(url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         with webdriver.Chrome(options=chrome_options) as driver:
@@ -606,16 +598,16 @@ class Cp_7(PressRelease):
                 return date_in_iso, target_ele
             except Exception as e:
                 print(f"Error retrieving content from {url}: {e}")
-                return '',''
+                return None,''
                 
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#wrapper > div.zxparty_news.media-news-list > div > div > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             time.sleep(0.2)
             url=row_.find_element(By.CSS_SELECTOR,'div.con>div.title>a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'div.con>div.title>a').get_attribute('title')
@@ -636,6 +628,7 @@ class Cp_7(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -659,7 +652,7 @@ class Cp_7(PressRelease):
         current_page=1
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -687,39 +680,35 @@ class Cp_8(PressRelease):
         return int(target_ele)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#asset > div.left > div.movement').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return target_ele
         
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#aboutcc > div.left > div.aboutccin > table > tbody')))
         rows=target_ele.find_elements(By.TAG_NAME,'tr')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             date_in_iso=row_.find_element(By.TAG_NAME,'td').text
             url=row_.find_element(By.CSS_SELECTOR, "td:nth-child(2)>a").get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR, "td:nth-child(2)>a").text
@@ -737,6 +726,7 @@ class Cp_8(PressRelease):
         driver.execute_script("arguments[0].click();", target_ele)
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -759,7 +749,7 @@ class Cp_8(PressRelease):
         current_page=1
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -780,45 +770,36 @@ class Cp_9(PressRelease):
             
         
     def get_current_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#c_static_001-16886996617940 > div > div > div.e_loop-24.s_list.response-transition > div > div.p_page > div')))
-        target_ele=target_ele.find_element(By.CSS_SELECTOR,'a.current').text
-        return int(target_ele)
+        return 1 
 
     def get_total_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#c_static_001-16886996617940 > div > div > div.e_loop-24.s_list.response-transition > div > div.p_page > div > a:nth-child(7)'))).text
-        return int(target_ele)
+        return 23 
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver, 15)
-        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#c_static_001-16886996617940 > div > div > div.e_loop-24.s_list.response-transition > div > div.p_page > div a.page_next')))
+        wait = WebDriverWait(driver, 15) #page_a page_next 
+        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'a.page_a.page_next')))
         driver.execute_script("arguments[0].click();", page_div)
         
         
     
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#js_content > section:nth-child(1) > section > section').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return target_ele
@@ -826,28 +807,20 @@ class Cp_9(PressRelease):
 
     def read_page(self,driver:WebDriver,page:int)->list[Document]:
         wait = WebDriverWait(driver, 3)    
-                      ##c_static_001-16886996617940 > div > div > div.e_loop-24.s_list > div > div.p_list > div:nth-child(1) > div > div.cbox-25-1.p_item > p
-                      ###c_static_001-16886996617940 > div > div > div.e_loop-24.s_list > div > div.p_list > div:nth-child(1) > div > div.cbox-25-1.p_item > p > a
-                      ###c_static_001-16886996617940 > div > div > div.e_loop-24.s_list.response-transition > div > div.p_list > div:nth-child(1) > div > div.cbox-25-1.p_item > p > a
         css_selector='div.p_list'
         rows=wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, css_selector)))
-        rows=rows.find_elements(By.CSS_SELECTOR,'div')
-        for row in rows: 
-            print(row.get_attribute('outerHTML'))
+        rows=rows.find_elements(By.CSS_SELECTOR,'div.cbox-24')
+        
         document_list:list[Document]=[]
         urls=[]
-        for i in range(len(rows)): 
-            time.sleep(3)
-            
-            try_element=driver.find_element(By.CSS_SELECTOR,f'div.p_list > div:nth-child{i+1}')
-            print(f'try_element succuess:{i}')
-            try_element2=driver.find_element(By.CSS_SELECTOR,f'div.p_list > div:nth-child{i+1} > div')
-            print(f'try_element2 succuess:{i}')
-            print(try_element2.get_attribute('outerHTML'))
-            a_element=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,f'div.p_list > div:nth-child({i+1}) > div > div:nth-child(2)> p > a')))
+        for row in rows: 
+            time.sleep(0.2)        
+            a_element=row.find_element(By.CSS_SELECTOR,'a')
             url = a_element.get_attribute('href')
             title = a_element.text
-            date_in_iso=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,f'div.p_list > div:nth-child({i+1}) > div > div:nth-child(3)>p'))).text
+            date_in_iso=row.find_element(By.CSS_SELECTOR,f' div > div:nth-child(3)>p').text
+            print(f'url:{url}')
+            print(f'date_in_iso:{date_in_iso}, title:{title}')
             urls.append(url)
             document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
         content_list = Parallel(n_jobs=-1)(delayed(Cp_9.retrieve_content)(self.press_release_url,url) for url in urls)    
@@ -859,6 +832,7 @@ class Cp_9(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver = webdriver.Chrome(options=chrome_options)
@@ -914,44 +888,40 @@ class Cp_10(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#DeltaPlaceHolderMain > div.container > div.lfnews-content').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return target_ele
         
         
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#ctl00_SPWebPartManager1_g_1fb3ae84_62ae_490e_b183_5811a82d92d7 > div.w_newslistpage_box > div > div.w_newslistpage_body > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             title=row_.find_element(By.CSS_SELECTOR,'span.title>a').text
             url=row_.find_element(By.CSS_SELECTOR,'span.title>a').get_attribute('href')
             urls.append(url)
-            date_in_iso=row_.find_element(By.CSS_SELECTOR,'span.date>').text
+            date_in_iso=row_.find_element(By.CSS_SELECTOR,'span.date').text
             date_in_iso = date_in_iso.replace('年', '-').replace('月', '-').replace('日', '').split('-')
             document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
         content_list = Parallel(n_jobs=-1)(delayed(Cp_10.retrieve_content)(self.press_release_url,url) for url in urls)    
@@ -961,6 +931,7 @@ class Cp_10(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -983,7 +954,7 @@ class Cp_10(PressRelease):
         current_page=1
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -995,61 +966,51 @@ class Cp_10(PressRelease):
 class Cp_11(PressRelease):
     def __init__(self):
         base_url='https://www.fmsh.com/'
-        press_release_url='https://www.cansinotech.com.cn/html/1//179/180/list-2.html'
+        press_release_url='https://www.fmsh.com/f4debf45-f44a-a17d-dcad-8e82db4cc6f4/'
         h_code='01385.HK'.lower()
         super().__init__(base_url,press_release_url,h_code)
         #robot.txt=None
 
     def get_current_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'body > div.inmain.clearfix > div > div.page')))
-        target_ele=target_ele.find_element(By.CSS_SELECTOR,'a.cpb').text
-        return int(target_ele)
+        return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        last_page = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'body > div.inmain.clearfix > div > div.page > a:nth-child(12)'))).get_attribute('href')
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.get(last_page)
-        target_ele=self.get_current_page(driver2)
-        driver2.quit()
-        return target_ele
+        return 13
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver, 15)
-        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'body > div.inmain.clearfix > div > div.page > a:nth-child(11)')))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='page']//a[contains(text(), '下一页')]")))
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
+        print(url)
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
-        target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.inmain.clearfix > div').text
+            return None
+
+        
+        try:
+            target_ele=WebDriverWait(driver2,5).until(EC.visibility_of_element_located((By.XPATH,'/html/body/div[3]/div/article'))).text
+        except TimeoutException: 
+            target_ele=driver2.find_element(By.XPATH,'//body').text
         driver2.quit()
         return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#newslist')))
+        target_ele = wait.until(EC.visibility_of_element_located((By.XPATH, '//*[@id="newslist"]')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('title')
@@ -1063,6 +1024,7 @@ class Cp_11(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1085,7 +1047,7 @@ class Cp_11(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1103,68 +1065,69 @@ class Cp_12(PressRelease):
         #robot.txt=None
 
     def get_current_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#newsPage > div.yema>div.yema-k'))).text
-        return int(target_ele)
+        return 1 
 
-    def get_total_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#newsPage > div.yema>span:last-of-type > a:nth-of-type(2)'))).get_attribute('href')
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.get(target_ele)
-        tot_page=self.get_current_page(driver2)
-        driver2.quit()
-        
-        return tot_page
+    def get_total_page(self,driver:WebDriver)->int:        
+        return min(100,234)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver, 15)
-        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#newsPage > div.yema > span:nth-child(8) > a:nth-child(1)')))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='yema']//a[contains(text(),'下一页')]")))                
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return None
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
 
-        target_ele=driver2.find_element(By.CSS_SELECTOR,'#nr > div > table').text
+        try:
+            target_ele=driver2.find_element(By.CSS_SELECTOR,'#nr > div > table').text
+        except NoSuchElementException:
+            target_ele=driver2.find_element(By.CSS_SELECTOR,'body').text
         driver2.quit()
         return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#newsPage > div.news > ul')))
-        rows=target_ele.find_elements(By.TAG_NAME,'li')
-        document_list:list[Document]=[]
-        urls=[]
-        for row_ in rows:
-            url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
-            urls.append(url)
-            title=row_.find_element(By.CSS_SELECTOR,'a').text
-            date_in_iso=row_.find_element(By.CSS_SELECTOR,'span').text
-            document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_12.retrieve_content)(self.press_release_url,url) for url in urls)    
-        for i in range(len(content_list)): 
-            document_list[i].set_content(content_list[i])
-        return document_list  
-
+        try:
+            rows = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '#newsPage > div.news > ul li')))
+            document_list:list[Document]=[]
+            urls=[]
+            for index,row_ in enumerate(rows):
+                try:
+                    url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
+                    title=row_.find_element(By.CSS_SELECTOR,'a').text
+                    date_in_iso=row_.find_element(By.CSS_SELECTOR,'span').text 
+                except StaleElementReferenceException: 
+                    try:
+                        url_ele=driver.find_element(By.XPATH,f"//*[@id='newsPage']//ul//li[{index}]")
+                        url=url_ele.get_attribute('href')
+                        title=url_ele.text
+                        date_in_iso=driver.find_element(By.XPATH,f"//*[@id='newsPage']//ul/li[{index}]//span").text
+                    except:
+                        continue
+                        
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
+                urls.append(url)
+                
+            
+            content_list = Parallel(n_jobs=-1)(delayed(Cp_12.retrieve_content)(url) for url in urls)    
+            for i in range(len(content_list)): 
+                document_list[i].set_content(content_list[i])
+            return document_list  
+        except StaleElementReferenceException: 
+            return []
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1187,7 +1150,7 @@ class Cp_12(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1203,86 +1166,80 @@ class Cp_13(PressRelease):
         h_code='06185.HK'.lower()
         super().__init__(base_url,press_release_url,h_code)
         #robot.txt=None
-    def extract_number(text):
-        # Use a regular expression to find numbers within parentheses
-        matches = re.search(r'\((\d+)\)', text)
-        if matches:
-            # Return the first group of digits found
-            return matches.group(1)
-        else:
-            # If no digits are found within parentheses, return None or raise an error
-            return None
-    def get_current_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'body > div.main > div.ms-content-main-page > a.ms-content-main-page-current'))).text 
-        cur_page=self.extract_number(target_ele)
-        
-        return int(cur_page)
+    # def extract_number(text):
+    #     # Use a regular expression to find numbers within parentheses
+    #     matches = re.search(r'\((\d+)\)', text)
+    #     if matches:
+    #         # Return the first group of digits found
+    #         return matches.group(1)
+    #     else:
+    #         # If no digits are found within parentheses, return None or raise an error
+    #         return None
+    def get_current_page(self,driver:WebDriver)->int:        
+        return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'body > div.main > div.ms-content-main-page > a.ms-content-main-page-last'))).get_attribute('href')
-        
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.get(target_ele)
-        page_=self.get_current_page(driver2)
-        driver2.quit()
-        return page_
+        return 26
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver, 15)
-        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'body > div.main > div.ms-content-main-page > a.ms-content-main-page-next')))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@class='ms-content-main-page']//a[contains(text(),'下一页')]")))
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try: 
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.main > div.News.animation1').text
-        except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+        except Exception: 
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.main > div.Trends.animation1 > div > div > div.Tab-content.Tab-content_current > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         document_list:list[Document]=[]
         urls=[]
-        for row_ in rows:
-            url=row_.find_element(By.CSS_SELECTOR,'div.title > a').get_attribute('href')
+        for index,row_ in enumerate(rows):
+            try:
+                url=row_.find_element(By.CSS_SELECTOR,'div.title > a').get_attribute('href')            
+                title=row_.find_element(By.CSS_SELECTOR,'div.title > a').text
+                date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.date').text
+                date_in_iso=date_in_iso.strip().strip('"').strip()
+    
+            except StaleElementReferenceException: 
+                try:
+                    url_ele=driver.find_element(By.XPATH,f"//ul[@class='TrendsList']/li[{index}]//a")
+                    url=url_ele.get_attribute('href')
+                
+                    title=url_ele.text
+                    date_in_iso=driver.find_element(By.XPATH,"//ul[@class='TrendsList']/li[{index}]//div[@class='date']")
+                except:
+                    continue
             urls.append(url)
-            title=row_.find_element(By.CSS_SELECTOR,'div.title > a').text
-            date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.date').text
-            date_in_iso=date_in_iso.strip().strip('"').strip()
             document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-            
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_13.retrieve_content)(self.press_release_url,url) for url in urls)    
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_13.retrieve_content)(url) for url in urls)    
         for i in range(len(content_list)): 
             document_list[i].set_content(content_list[i])
         return document_list  
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1305,7 +1262,7 @@ class Cp_13(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1323,45 +1280,47 @@ class Cp_14(PressRelease):
         #robot.txt=
 
     def get_current_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#app > div.app-container > div > div.detail-content > div.router-view-container > div > div.pagination-container > div > ul')))
-        target_ele=target_ele.find_element(By.CSS_SELECTOR,'li.active')
-        return int(target_ele)
+        return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#app > div.app-container > div > div.detail-content > div.router-view-container > div > div.pagination-container > div > ul > li:nth-child(8)')))
-        return int(target_ele)
+        return min(100,82)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver, 15)
-        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#app > div.app-container > div > div.detail-content > div.router-view-container > div > div.pagination-container > div > button.btn-next')))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='pagination-container']//button[@class='btn-next']")))
         driver.execute_script("arguments[0].click();", page_div)
         
-    def retrieve_content(self,url:str,temp_doc:Document)->str:
+    def retrieve_content(self,temp_doc:Document)->str:
         txt=_extracting_an_document(temp_doc)
         return txt 
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#app > div.app-container > div > div.detail-content > div.router-view-container > div > ul')))
+        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'ul.announce-list')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         temp_doc_list=[]
-        for row_ in rows:
-            url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
-            title=row_.find_element(By.CSS_SELECTOR,'a').text
-            date_in_iso=row_.find_element(By.CSS_SELECTOR,'div>span.item-left-date').text.replace('.','-')
-            temp_doc=Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id)
+        for index,row_ in enumerate(rows):
+            try:
+                url_ele=driver.find_element(By.XPATH,f"//ul[@class='announce-list']//li[{index}]//a")
+                url=url_ele.get_attribute('href')
+                title=url_ele.text
+                month=driver.find_element(By.XPATH,f"//ul[@class='announce-list']//li[{index}]//span[@class='item-left-date']").text.replace('.','-').strip()
+                day=driver.find_element(By.XPATH,f"//ul[@class='announce-list']//li[{index}]//span[@class='item-left-day']").text.strip()
+                date_in_iso=month+'-'+day
+                temp_doc=Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id)
+            except (StaleElementReferenceException,NoSuchElementException) as e:                 
+                continue
             temp_doc_list.append(temp_doc)
             tot_doc.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-            
-        content_list = Parallel(n_jobs=-1)(delayed(self.retrieve_content)(self.press_release_url,url) for url in temp_doc_list)    
+        
+        content_list = Parallel(n_jobs=-1)(delayed(self.retrieve_content)(temp_doc) for temp_doc in temp_doc_list)    
         for i in range(len(content_list)): 
             tot_doc[i].set_content(content_list[i])
         return tot_doc  
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1384,7 +1343,7 @@ class Cp_14(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1414,7 +1373,7 @@ class Cp_15(PressRelease):
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         pass 
 
-    def retrieve_content(press_release_url:str,url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -1422,32 +1381,25 @@ class Cp_15(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return '',''
+            return None,''
 
         try:
             date_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.wra.w1200 > div.fr.ml30.mt30.w900 > div > div > div > div.source > div.sdiv.fl > span > publishtime').text
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.wra.w1200 > div.fr.ml30.mt30.w900 > div > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
         return date_ele,target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.wra.w1200 > div.fr.ml30.mt30.w900 > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'p>a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'p>b>a:nth-child(2)')
@@ -1461,6 +1413,7 @@ class Cp_15(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1483,7 +1436,7 @@ class Cp_15(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1515,7 +1468,7 @@ class Cp_16(PressRelease):
         page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'body > div.mm-page > div.inner_cont > div > div > div.list_newspic2page > div.page > a.next')))
         driver.execute_script("arguments[0].click();", page_div)
 
-    def retrieve_content(press_release_url:str,url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -1523,32 +1476,25 @@ class Cp_16(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return '',''
+            return None,''
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.mm-page > div.inner_cont > div > div > div.cont_infoleft > div > div.post_article').text
             date_in_iso=driver2.find_element(By.CSS_SELECTOR,'body > div.mm-page > div.inner_cont > div > div > div.cont_infoleft > div > div.post_article > div.article_header > div > ul > li.li1 > span').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
             date_in_iso=''
         finally:
             driver2.quit()
             return date_in_iso,target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.mm-page > div.inner_cont > div > div > div.list_newspic2page > div.list_newspic2')))
         rows=target_ele.find_elements(By.TAG_NAME,'dl')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a>dt>div>h3').text            
@@ -1562,6 +1508,7 @@ class Cp_16(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1584,7 +1531,7 @@ class Cp_16(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1604,58 +1551,52 @@ class Cp_17(PressRelease):
     # #secondPage_xwzx_132012_page
     # span.current linenum43
     def get_current_page(self,driver:WebDriver)->int:
-        wait = WebDriverWait(driver, 15)
-        target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#secondPage_xwzx_132012_page>span.current'))).text
-        return int(target_ele)
+        return 1
 
     def get_total_page(self,driver:WebDriver)->int:
         #wait = WebDriverWait(driver, 15)
         #target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'')))
-        return 129
+        return min(100,129)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver, 15)
-        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#secondPage_xwzx_132012_page>a.nextpage')))
+        page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#secondPage_xwzx_132012_page a.nextpage')))
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div > div.mainpage > div > div.doubleR > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#secondPage_xwzx_132012 > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
-            url=row_.find_element(By.CSS_SELECTOR,'a.a_left').get_attribute('href')
+        for index,row_ in enumerate(rows):
+            url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
-            title=row_.find_element(By.CSS_SELECTOR,'a_left').text
-            date_in_iso=row_.find_element(By.CSS_SELECTOR,'span.a_right').text
+            title=row_.find_element(By.CSS_SELECTOR,'a').text
+            date_in_iso=row_.find_element(By.CSS_SELECTOR,'span').text
             content=self.retrieve_content(url)
             tot_doc.append(Document(url,title,date_in_iso,self.press_release_url,content,None,self.company_id))
 
@@ -1665,6 +1606,7 @@ class Cp_17(PressRelease):
         return tot_doc
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1687,7 +1629,7 @@ class Cp_17(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1732,7 +1674,7 @@ class Cp_18(PressRelease):
             # If no datetime pattern is found, return None or raise an error
             return None
         
-    def retrieve_content(press_release_url:str,url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -1740,14 +1682,7 @@ class Cp_18(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return '',''
+            return None,''
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.section > div > div.article_detail > div > div > div.left.fl.no_border > div.words')
             target_url=target_ele.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
@@ -1755,20 +1690,20 @@ class Cp_18(PressRelease):
             date_in_iso=driver2.find_element(By.CSS_SELECTOR,'body > div.section > div > div.article_detail > div > div > div.left.fl.no_border > div.top > p').text
             date_in_iso=Cp_18.extract_iso_datetime(date_in_iso)
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return date_in_iso,target_ele
         
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#main_inverstorRelations_dqgg_hggg_index > div > div.content > div.con_detail > div > div.left_content.fl > div > div.bk_child > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         temp_doc_list=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso,target_url=self.retrieve_content(url)
@@ -1783,6 +1718,7 @@ class Cp_18(PressRelease):
         return tot_doc
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1805,7 +1741,7 @@ class Cp_18(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1838,33 +1774,29 @@ class Cp_19(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'').text
             
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#right > div.nycontent.wow.fadeInRight.animated > div.small_nycontent > div.nylisttt')))
         ##right > div.nycontent.wow.fadeInRight.animated > div.small_nycontent > div.nylisttt
@@ -1872,7 +1804,7 @@ class Cp_19(PressRelease):
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         temp_doc_list=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,' div > a.awz').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,' div > a.awz').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,' div > span').text
@@ -1887,6 +1819,7 @@ class Cp_19(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -1909,7 +1842,7 @@ class Cp_19(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -1951,39 +1884,35 @@ class Cp_20(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.content.container').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.content.container > div.conRight > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').text
@@ -1996,6 +1925,7 @@ class Cp_20(PressRelease):
         return tot_doc
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2018,7 +1948,7 @@ class Cp_20(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2052,38 +1982,34 @@ class Cp_21(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.w1170.con.clearfix > div.sidebarR > div.compon_particulars.subcompon3').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.w1170.con.clearfix > div.sidebarR > div.serve_list > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'p').text
@@ -2095,6 +2021,7 @@ class Cp_21(PressRelease):
         return tot_doc
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2117,7 +2044,7 @@ class Cp_21(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2149,27 +2076,23 @@ class Cp_22(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.Main-box.padd.clearfix > div > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
@@ -2187,14 +2110,14 @@ class Cp_22(PressRelease):
         else:
             raise ValueError("Date string format is incorrect, expected 'MM-DD YYYY'")
         
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         WebDriverWait
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.Main-box.padd.clearfix.news-back > div > div.news-list.padd.clearfix > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a>div>h2').text
@@ -2207,6 +2130,7 @@ class Cp_22(PressRelease):
         return tot_doc
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2229,7 +2153,7 @@ class Cp_22(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2274,38 +2198,34 @@ class Cp_23(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.information > div.m_2 > div.m_n').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#ul_list')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').text 
@@ -2318,6 +2238,7 @@ class Cp_23(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2340,7 +2261,7 @@ class Cp_23(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2384,7 +2305,7 @@ class Cp_24(PressRelease):
 
         return iso_format
     
-    def retrieve_content(press_release_url:str,url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -2392,32 +2313,25 @@ class Cp_24(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return '',''
+            return None,''
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.xwxq.aos-init.aos-animate').text
             date_in_iso=driver2.find_element(By.CSS_SELECTOR,'body > div.xwxq.aos-init.aos-animate > div.xwxq-top > p')
             date_in_iso=Cp_24.to_iso_format(date_in_iso)
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.nybox.gynybox.aos-init.aos-animate > div.qydt-box.aos-init.aos-animate > div.qydt-box-con')))
         rows=target_ele.find_elements(By.TAG_NAME,'div')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a >h5').text
@@ -2430,6 +2344,7 @@ class Cp_24(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2452,7 +2367,7 @@ class Cp_24(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2485,38 +2400,34 @@ class Cp_25(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.news_content').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > main > div.news_bottom_bg > div > div.news_list > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('data-title')
@@ -2529,6 +2440,7 @@ class Cp_25(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2551,7 +2463,7 @@ class Cp_25(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2590,7 +2502,7 @@ class Cp_26(PressRelease):
         page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'body > div.wrap-layer > div > div.in-right.in-right2 > div.page-wrap.ft18 > div > ul > li.next > a')))
         driver.execute_script("arguments[0].click();", page_div)
 
-    def retrieve_content(press_release_url:str,url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -2598,33 +2510,26 @@ class Cp_26(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return '',''
+            return None,''
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.wrap-layer > div > div.in-right.in-right2 > div.newsInfo').text
             date_=driver2.find_element(By.CSS_SELECTOR,'body > div.wrap-layer > div > div.in-right.in-right2 > div.newsInfo > div.source.ft16 > ul > li').text
             pattern = r'\d{4}-\d{2}-\d{2}'
             date_in_iso = re.search(pattern, date_).group()
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return date_in_iso,target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.wrap-layer > div > div.in-right.in-right2 > div.mod-news-5')))
         rows=target_ele.find_elements(By.TAG_NAME,'div')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('title')
@@ -2637,6 +2542,7 @@ class Cp_26(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2659,7 +2565,7 @@ class Cp_26(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2694,38 +2600,34 @@ class Cp_27(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#DeltaPlaceHolderMain > div.container > div.lfnews-content').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#ctl00_SPWebPartManager1_g_9bcf6e15_e0de_4d64_8db9_15227dcb295e > div.w_newslistpage_box > div > div.w_newslistpage_body > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').text
@@ -2738,6 +2640,7 @@ class Cp_27(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2760,7 +2663,7 @@ class Cp_27(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2795,38 +2698,34 @@ class Cp_28(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.page-box.responsibility-page.charity-detail-page > div > div.main-content').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.page-box.news-page.news-list-page > div > div.main-content > div.ui-article-list')))
         rows=target_ele.find_elements(By.TAG_NAME,'div')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').text
@@ -2839,6 +2738,7 @@ class Cp_28(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2861,7 +2761,7 @@ class Cp_28(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2894,38 +2794,34 @@ class Cp_29(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#c > tbody').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#文章正文 > div.page-content')))
         rows=target_ele.find_elements(By.TAG_NAME,'table')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             urls.append(url)
             title=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('title')
@@ -2939,6 +2835,7 @@ class Cp_29(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -2961,7 +2858,7 @@ class Cp_29(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -2990,38 +2887,34 @@ class Cp_30(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.page-main.main > div > div > div.pm-r > div.Ybox.content.show > div > div.content-main').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.page-main.main > div > div > div.pm-r > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             day=row_.find_element(By.CSS_SELECTOR,'div.day').text
@@ -3040,6 +2933,7 @@ class Cp_30(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3062,7 +2956,7 @@ class Cp_30(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3092,32 +2986,28 @@ class Cp_31(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#company_con > div.new_read.page_cell > div.container.clearfix > div.content').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#neirong > div.container.clearfix > div.news_left > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -3150,6 +3040,7 @@ class Cp_31(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3168,7 +3059,7 @@ class Cp_31(PressRelease):
                 else: 
                     raise(e)
         
-        all_doc=self.read_page(driver)
+        all_doc=self.read_page(driver,error_count)
         driver.quit()
         return all_doc
     
@@ -3196,38 +3087,34 @@ class Cp_32(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#__layout > div > div:nth-child(2) > div:nth-child(1) > div.container > div.article').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#__layout > div > div.news > div.page > div.success-box > div.body > div > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'img').get_attribute('alt')
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.time').text
@@ -3240,6 +3127,7 @@ class Cp_32(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3262,7 +3150,7 @@ class Cp_32(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3310,13 +3198,13 @@ class Cp_33(PressRelease):
         driver.switch_to.window(first_window_handle)
         return current_url,content
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#PressReleases')))
         rows=target_ele.find_elements(By.TAG_NAME,'div')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url_ele=row_.find_element(By.CSS_SELECTOR,'a image')
             title=row_.find_element(By.CSS_SELECTOR,'a.PressRelease-NewsTitle').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'span.PressRelease-NewsDate').text
@@ -3331,6 +3219,7 @@ class Cp_33(PressRelease):
         return tot_doc
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3359,7 +3248,7 @@ class Cp_33(PressRelease):
         current_page=1
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3373,7 +3262,7 @@ class Cp_33(PressRelease):
         current_page=1
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3406,38 +3295,34 @@ class Cp_34(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'')
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'')
@@ -3450,6 +3335,7 @@ class Cp_34(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3472,7 +3358,7 @@ class Cp_34(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3501,38 +3387,34 @@ class Cp_35(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#u-columnbg > div > div.news-detail.clearfix').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#u-columnbg > div > div.news-list.news-list-hotinfo > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
         urls=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'span').text
@@ -3545,6 +3427,7 @@ class Cp_35(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3567,7 +3450,7 @@ class Cp_35(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3606,37 +3489,33 @@ class Cp_36(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#about > div > div > div > div.main_col > div > div.about_content_news').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#about > div > div > div > div.main_col > div > div.about_content_news > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'span.showtime').text
@@ -3645,6 +3524,7 @@ class Cp_36(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3667,7 +3547,7 @@ class Cp_36(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3696,37 +3576,33 @@ class Cp_37(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.main > div.wrap > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#ajaxlist')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'h3 a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'h3 a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.news_time').text.replace('.','-')
@@ -3735,6 +3611,7 @@ class Cp_37(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3757,7 +3634,7 @@ class Cp_37(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3785,7 +3662,7 @@ class Cp_38(PressRelease):
         page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#\34 10804 > table > tbody > tr > td > table > tbody > tr > td:nth-child(4) > a')))
         driver.execute_script("arguments[0].click();", page_div)
 
-    def retrieve_content(press_release_url:str,url:str)->tuple[str,str]:
+    def retrieve_content(url:str, error_count:int)->tuple[str,str]:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
@@ -3793,32 +3670,25 @@ class Cp_38(PressRelease):
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return '',''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return '',''
+            return None,''
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#body > div.wzy > div.wz_sakb.content > div.wz_article.atcl-viedo').text
             time_ele=driver2.find_element(By.CSS_SELECTOR,'#body > div.wzy > div.wz_sakb.content > ul > li.fl.time').text
             date_pattern = r'\b\d{4}-\d{2}-\d{2}\b'
             date_in_iso = re.match(date_pattern, time_ele).group()
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()        
             return date_in_iso,target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#\34 10804 > div > div > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso,content=self.retrieve_content(url)
@@ -3826,6 +3696,7 @@ class Cp_38(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3848,7 +3719,7 @@ class Cp_38(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3877,37 +3748,33 @@ class Cp_39(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > form > div.bodyer.type2 > div.width1132 > div.width877.fr > div > div.cbd').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#aspnetForm > div.bodyer.type2 > div.width1132 > div.width877.fr > div > div.bd > dl')))
         rows=target_ele.find_elements(By.TAG_NAME,'d')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'span').text.replace('.','-')
@@ -3916,6 +3783,7 @@ class Cp_39(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -3938,7 +3806,7 @@ class Cp_39(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -3967,37 +3835,33 @@ class Cp_40(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'#__layout > div > div:nth-child(2) > div:nth-child(2) > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#list > div.news > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'div > h3').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'div > label')
@@ -4006,6 +3870,7 @@ class Cp_40(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4028,7 +3893,7 @@ class Cp_40(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -4083,12 +3948,12 @@ class Cp_41(PressRelease):
         driver.switch_to.window(current_handler)
         return current_url,content
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#PressReleases')))
         rows=target_ele.find_elements(By.TAG_NAME,'div')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             ##PressRelease_0 > div.NoChange-NewsColumn.ColumnLayoutColumn > div > div.PressRelease-Attachment > div > a > img
             url_ele=row_.find_element(By.CSS_SELECTOR,'img')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
@@ -4098,6 +3963,7 @@ class Cp_41(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4124,7 +3990,7 @@ class Cp_41(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -4158,27 +4024,23 @@ class Cp_42(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
@@ -4264,7 +4126,7 @@ class Cp_42(PressRelease):
                 result_document.append(Document(url,title,date_in_iso,self.base_url,content,None,self.company_id))
         return result_document
                 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.outer_box > div.page_content > div.page_right > div > div.page_main > div.ir_year')))
@@ -4277,6 +4139,7 @@ class Cp_42(PressRelease):
 
                 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4296,7 +4159,7 @@ class Cp_42(PressRelease):
                     raise(e)
         
         
-        all_doc:list[Document]=self.read_page(driver)
+        all_doc:list[Document]=self.read_page(driver,error_count)
         driver.quit()
         return all_doc
         
@@ -4318,27 +4181,23 @@ class Cp_43(PressRelease):
 
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
@@ -4354,7 +4213,7 @@ class Cp_43(PressRelease):
         
         news_parent = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#business > div.row > div > ul')))
         rows=news_parent.find_elements(By.TAG_NAME,'li')
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'a span').text
@@ -4362,6 +4221,7 @@ class Cp_43(PressRelease):
             tot_doc.append(Document(url,title,date_in_iso,self.press_release_url,content,None,self.company_id))
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4420,37 +4280,33 @@ class Cp_44(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.about > div > div.about_right > article > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.about > div > div.about_right > article > div')))
         rows=target_ele.find_elements(By.TAG_NAME,'div')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.date').text
@@ -4459,6 +4315,7 @@ class Cp_44(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4481,7 +4338,7 @@ class Cp_44(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -4512,23 +4369,19 @@ class Cp_45(PressRelease):
         driver.execute_script("arguments[0].click();", page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
-        txt_result=_extracting_an_document(Document(url,None,None,press_release_url,None,None,None))
+            return None
+
+        txt_result=_extracting_an_document(Document(url,None,None,None,None,None,None))
         driver2.quit()
         return txt_result
 
@@ -4540,7 +4393,7 @@ class Cp_45(PressRelease):
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div > div.container > div.cont_right > div > div.inner_cont_ann > ul')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'div.date').text.replace(' ','').replace('.','-')
@@ -4550,6 +4403,7 @@ class Cp_45(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4600,37 +4454,33 @@ class Cp_46(PressRelease):
         driver.get(page_template)
         
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'body > div.maxcontainer.main-con-bg > dl > dt > div').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body > div.maxcontainer.main-con-bg > dl > dd > dl > dd > div')))
         rows=target_ele.find_elements(By.TAG_NAME,'dl')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'dt.fl_pc a').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'dt.fl_pc a').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'dd.fr_pc').text
@@ -4639,6 +4489,7 @@ class Cp_46(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4661,7 +4512,7 @@ class Cp_46(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -4692,37 +4543,33 @@ class Cp_47(PressRelease):
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'')
@@ -4731,6 +4578,7 @@ class Cp_47(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4753,7 +4601,7 @@ class Cp_47(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
@@ -4786,37 +4634,33 @@ class Cp_48(PressRelease):
         driver2.quit()  
 
     @staticmethod
-    def retrieve_content(press_release_url:str,url:str)->str:
+    def retrieve_content(url:str, error_count:int)->str:
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         driver2 = webdriver.Chrome(options=chrome_options)
+        if url is None: 
+            return ""
         try:
             driver_connect(driver2,url)
         except TimeoutException: 
             driver2.close()
-            return ''
-        except InvalidArgumentException:
-            print("Invalid Argument",url)
-            try:
-                driver_connect(driver2,press_release_url+url)
-            except InvalidArgumentException: 
-                driver2.close()
-                return ''
+            return None
+
         try:
             target_ele=driver2.find_element(By.CSS_SELECTOR,'').text
         except NoSuchElementException: 
-            print(press_release_url, " ", url)
-            target_ele=''
+            print(url)
+            target_ele=None
         finally:
             driver2.quit()
             return target_ele
 
-    def read_page(self,driver:WebDriver)->list[Document]:
+    def read_page(self,driver:WebDriver,error_count:int)->list[Document]:
         wait = WebDriverWait(driver, 15)
         target_ele = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '')))
         rows=target_ele.find_elements(By.TAG_NAME,'li')
         tot_doc:list[Document]=[]
-        for row_ in rows:
+        for index,row_ in enumerate(rows):
             url=row_.find_element(By.CSS_SELECTOR,'').get_attribute('href')
             title=row_.find_element(By.CSS_SELECTOR,'').text
             date_in_iso=row_.find_element(By.CSS_SELECTOR,'')
@@ -4825,6 +4669,7 @@ class Cp_48(PressRelease):
 
 
     def crawling(self)->list[Document]:
+        error_count=0
         #chrome_options = Options()
         #chrome_options.add_argument('--headless')
         #driver = webdriver.Chrome(options=chrome_options)
@@ -4847,7 +4692,7 @@ class Cp_48(PressRelease):
         current_page=self.get_current_page(driver)
         all_doc:list[Document]=[]
         while(current_page<=total_page):
-            temp_doc=self.read_page(driver)
+            temp_doc=self.read_page(driver,error_count)
             all_doc=all_doc+temp_doc
             if(current_page<total_page):
                 self.next_page(current_page,driver)
