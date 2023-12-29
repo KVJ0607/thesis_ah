@@ -1215,9 +1215,12 @@ class Document:
         #db 
         self.__id=id
         self.__company_id=company_id
-    
     @classmethod
-    def from_tuple(self,article_tuple:tuple)->'Article': 
+    def from_url(self,url:str)->'Document':
+        return Document(url,None,None,None,None,None,None)
+        
+    @classmethod
+    def from_tuple(self,article_tuple:tuple)->'Document': 
         if len(article_tuple)==7:
             url_,title_,published_at_,api_,content_,id_,company_id_=article_tuple
         elif len(article_tuple)==6:
@@ -1226,7 +1229,6 @@ class Document:
         else: 
             raise(ValueError(f'document_tuple {article_tuple} should either have len of 5 or 6'))
         result=Document(url_,title_,published_at_,api_,content_,id_,company_id_)
-    
         return result
     
     @property
@@ -1254,7 +1256,7 @@ class Document:
     @property
     def company_id(self):
         if self.__company_id is None: 
-            raise AttributeError("company_id is not setted /n"+self.to_dict())
+            raise AttributeError("company_id is not setted /n"+str(self.to_dict()))
         return self.__company_id
     
     #set function

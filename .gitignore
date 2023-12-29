@@ -39,3 +39,8 @@ instance/
 temp*
 api_key
 old_code/
+helper/
+article/press_release_old.py
+article/press_release_old2.py
+article/press_release_old3.py
+

@@ -2,6 +2,31 @@ import time
 from selenium.common.exceptions import WebDriverException
 from company.company import * 
 from company.orm import Object2Relational
+
+
+def extract_normal_link(url_list:list[str]): 
+    result_list:list[str]=[]
+    for url_ in url_list: 
+        if (url_ and not url_.startswith('#') and not url_.startswith('mailto:') and not url_.startswith('tel:')and not url_.startswith('javascript:')):
+            result_list.append(url_)
+    return result_list
+
+def from_tuple_retri(content:str|None,url:str,**args): 
+    return_dict= {
+        'content':content,
+        'err_url':url
+    }
+    for key_,value_ in args.items(): 
+        return_dict[key_]=value_
+    return return_dict
+
+def from_tuple_read(doc_list:list[Document],err_url_list:list[str]):
+    return{
+        'doc_list':doc_list,
+        'err_url_list':err_url_list
+    }
+
+
 def get_id_from_h_code(h_code:str): 
     cp_handle=Object2Relational(Company)
     result:Company=cp_handle.fetch_some(('h_code=?',h_code))[0]
@@ -22,7 +47,23 @@ def driver_connect(driver,url):
                 time.sleep(5)  # Wait for 5 seconds before retrying
             else: 
                 raise(e)
-            
+
+def is_file(url:str): 
+    ext=url[-3:]
+    if ext == 'pdf': 
+        return True
+    elif ext =='doc': 
+        return True
+    elif ext=='docx': 
+        return True
+    elif ext=='xls':
+        return True
+    elif ext=='rtf':
+        return True
+    else: 
+        return False
+
+
 class PressRelease: 
     def __init__(self,base_url:str,press_release_url:str,h_code:str):
         self.__base_url=base_url
