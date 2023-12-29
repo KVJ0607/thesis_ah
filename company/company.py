@@ -2,6 +2,7 @@ from datetime import datetime
 import re 
 from collections import Counter
 
+from utils.basic import is_iso_format
 from utils.constant import COMPANIES_DB
 from master_dictionary.master_dictionary import MasterDictionary
 
@@ -1203,12 +1204,16 @@ class Document:
     def __init__(self,url:str,title:str,published_at:datetime|str,source:str,content:str,id:int|None=None,company_id:int|None=None):
         self.__url=url 
         self.__title=title
-        if type(published_at)==datetime:
+        
+        if type(published_at)==datetime and published_at is not None:
             self.__published_at=published_at.isoformat()
-        elif type(published_at)==str:
+        elif type(published_at)==str and is_iso_format(published_at) and published_at is not None:            
             self.__published_at=published_at
-        else:
+        elif published_at is None:
             self.__published_at=None
+        else:
+            message=f"published_at should be string or in isoformat,not {published_at}"
+            raise(ValueError(message))
             
         self.__source=source
         self.__content=content        

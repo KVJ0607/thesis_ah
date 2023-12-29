@@ -62,57 +62,57 @@ def documents_commit(docs:list[Document],cp_id:int):
 
 
 
-temp_doc,cp_id=Cp_6().crawling()
+# temp_doc,cp_id=Cp_6().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_7().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
+
+temp_doc,cp_id=Cp_8().crawling()
 for my_doc_ in temp_doc: 
     print(my_doc_.url)
     print(my_doc_.title," ",my_doc_.published_at )
 documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_7().crawling()
+temp_doc,cp_id=Cp_9().crawling()
 for my_doc_ in temp_doc: 
     print(my_doc_.url)
     print(my_doc_.title," ",my_doc_.published_at )
 documents_commit(temp_doc,cp_id)
 
-# temp_doc,cp_id=Cp_8().crawling()
-# for my_doc_ in temp_doc: 
-#     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
-# documents_commit(temp_doc,cp_id)
 
-# temp_doc,cp_id=Cp_9().crawling()
-# for my_doc_ in temp_doc: 
-#     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
-# documents_commit(temp_doc,cp_id)
+temp_doc,cp_id=Cp_10().crawling()
+for my_doc_ in temp_doc: 
+    print(my_doc_.url)
+    print(my_doc_.title," ",my_doc_.published_at )
+documents_commit(temp_doc,cp_id)
 
 
-# temp_doc,cp_id=Cp_10().crawling()
-# for my_doc_ in temp_doc: 
-#     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
-# documents_commit(temp_doc,cp_id)
+temp_doc,cp_id=Cp_11().crawling()
+for my_doc_ in temp_doc: 
+    print(my_doc_.url)
+    print(my_doc_.title," ",my_doc_.published_at )
+documents_commit(temp_doc,cp_id)
 
 
-# temp_doc,cp_id=Cp_11().crawling()
-# for my_doc_ in temp_doc: 
-#     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
-# documents_commit(temp_doc,cp_id)
+temp_doc,cp_id=Cp_12().crawling()
+for my_doc_ in temp_doc: 
+    print(my_doc_.url)
+    print(my_doc_.title," ",my_doc_.published_at )
+documents_commit(temp_doc,cp_id)
 
 
-# temp_doc,cp_id=Cp_12().crawling()
-# for my_doc_ in temp_doc: 
-#     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
-# documents_commit(temp_doc,cp_id)
-
-
-# temp_doc,cp_id=Cp_13().crawling()
-# for my_doc_ in temp_doc: 
-#     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
-# documents_commit(temp_doc,cp_id)
+temp_doc,cp_id=Cp_13().crawling()
+for my_doc_ in temp_doc: 
+    print(my_doc_.url)
+    print(my_doc_.title," ",my_doc_.published_at )
+documents_commit(temp_doc,cp_id)
 
 # temp_doc,cp_id=Cp_14().crawling()
 # for my_doc_ in temp_doc: 

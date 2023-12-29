@@ -2,7 +2,38 @@ import time
 from selenium.common.exceptions import WebDriverException
 from company.company import * 
 from company.orm import Object2Relational
+from urllib.parse import urlparse
 
+def extract_iso_date(string):
+    # ISO 8601 date format pattern (basic, without considering week numbers or ordinal dates)
+    iso_date_pattern = r'\d{4}-\d{2}-\d{2}'
+
+    # Search for the pattern
+    match = re.search(iso_date_pattern, string)
+    if match:
+        date_str = match.group()
+        # Validate that the extracted string is a valid date
+        datetime.fromisoformat(date_str)
+        return date_str
+
+    else:
+        # If no pattern is found, return None
+        raise(ValueError('The string does not contain date in iso format'))
+
+def is_internal_link(base_url:str, link:str)->bool:
+    """
+    Checks whether a given link is an internal link with respect to the base URL.
+    
+    :param base_url: The base URL of the site.
+    :param link: The link to be checked.
+    :return: True if the link is internal, False otherwise.
+    """
+    base_parsed = urlparse(base_url)
+    link_parsed = urlparse(link)
+
+    # Links are considered internal if they have the same netloc or
+    # if the link doesn't have a netloc but has a path (relative link).
+    return (link_parsed.netloc == base_parsed.netloc or not link_parsed.netloc) and link_parsed.scheme in ('', 'http', 'https')
 
 def extract_normal_link(url_list:list[str]): 
     result_list:list[str]=[]

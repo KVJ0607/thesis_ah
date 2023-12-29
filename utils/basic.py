@@ -1,5 +1,15 @@
 import itertools
 from datetime import datetime
+
+def is_iso_format(date_string):
+    try:
+        # If the string is a date in ISO 8601 format, this will succeed
+        datetime.fromisoformat(date_string)
+        return True
+    except ValueError:
+        # If the string is not in ISO format, a ValueError will be raised
+        return False
+    
 def create_nd_list(dimensions, value=[]):
     """Creating an n-dimensional list variable dimensions 
 
