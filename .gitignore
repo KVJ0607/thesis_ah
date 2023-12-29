@@ -28,7 +28,7 @@ share/python-wheels/
 MANIFEST
 
 #virtual environments
-myenv
+myenv/
 
 #files
 article/hkexnews/chrome-mac-arm64
@@ -43,4 +43,5 @@ helper/
 article/press_release_old.py
 article/press_release_old2.py
 article/press_release_old3.py
+
 
