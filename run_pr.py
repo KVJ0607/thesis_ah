@@ -153,42 +153,42 @@ def documents_commit(docs:list[Document],cp_id:int):
 #     print(my_doc_.title," ",my_doc_.published_at )
 # documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_20().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc,cp_id)
+# temp_doc,cp_id=Cp_20().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_21().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc,cp_id)
-"""
-temp_doc,cp_id=Cp_22().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc,cp_id)
+# temp_doc,cp_id=Cp_21().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_23().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc,cp_id)
+# temp_doc,cp_id=Cp_22().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_24().crawling()
-for my_doc_ in temp_doc: 
-    print(my_doc_.url)
-    print(my_doc_.title," ",my_doc_.published_at )
-documents_commit(temp_doc,cp_id)
+# temp_doc,cp_id=Cp_23().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_24().crawling()
+# for my_doc_ in temp_doc: 
+#     print(my_doc_.url)
+#     print(my_doc_.title," ",my_doc_.published_at )
+# documents_commit(temp_doc,cp_id)
 
 temp_doc,cp_id=Cp_25().crawling()
 for my_doc_ in temp_doc: 
     print(my_doc_.url)
     print(my_doc_.title," ",my_doc_.published_at )
 documents_commit(temp_doc,cp_id)
-
+"""
 temp_doc,cp_id=Cp_26().crawling()
 for my_doc_ in temp_doc: 
     print(my_doc_.url)

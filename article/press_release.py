@@ -19,7 +19,7 @@ from crawling import PressRelease, driver_connect, is_file,from_tuple_retri,from
 from company.company import *
 from article.mining import _extracting_an_document
 ERROR_COUNT = 20
-CONVERTION_RATE=0.2
+CONVERTION_RATE=0.3
 class Cp_1(PressRelease):
     def __init__(self):
         base_url = "https://www.ftol.com.cn/"
@@ -51,15 +51,16 @@ class Cp_1(PressRelease):
         return min(100,138)
     
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#next_page")))
+        button = WebDriverWait(driver,30).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#next_page")))
         driver.execute_script("arguments[0].click();", button)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         #check url is not empty
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         #extract txt if it is a document
         isfile=is_file(url)
         if isfile:
@@ -68,7 +69,7 @@ class Cp_1(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print("error in retrieve_content")
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         #driver connect to url
         url_list:list[str]=[]
         chrome_options = Options()
@@ -89,10 +90,10 @@ class Cp_1(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
                 
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute("href")                                
                 isfile_2=is_file(new_url)
@@ -113,23 +114,23 @@ class Cp_1(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f"error in retrieve_content, content is empty, {url}")
             driver2.quit()
             return from_tuple_retri("",url)            
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.nr > div.Re_three > ul")))
             rows=target_ele.find_elements(By.TAG_NAME,"li")
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -150,7 +151,9 @@ class Cp_1(PressRelease):
                 document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -163,7 +166,7 @@ class Cp_1(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(Exception("reach maximum error count"))
             else: 
                 document_list[i].set_content(content_list[i]["content"])
@@ -245,10 +248,11 @@ class Cp_2(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         #check url is not empty
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         #extract txt if it is a document
         isfile=is_file(url)
         if isfile:
@@ -257,7 +261,7 @@ class Cp_2(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -277,9 +281,9 @@ class Cp_2(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -302,23 +306,23 @@ class Cp_2(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#mm-0>div.nybody_box>div.wrap>div.nybox_box>div.nybox_right>ul.nynews_box")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -339,7 +343,9 @@ class Cp_2(PressRelease):
                 document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -352,7 +358,7 @@ class Cp_2(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else: 
                 document_list[i].set_content(content_list[i]["content"])
@@ -432,16 +438,17 @@ class Cp_3(PressRelease):
         return min(100,9)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//body/div[@class='wrap']/div[contains(@class,'page') and contains(@class,'flex')]//a[last()]")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -450,7 +457,7 @@ class Cp_3(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -471,10 +478,10 @@ class Cp_3(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -497,23 +504,23 @@ class Cp_3(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body>div.wrap>ul.support_list')))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -534,7 +541,9 @@ class Cp_3(PressRelease):
                 document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -547,7 +556,7 @@ class Cp_3(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else: 
                 document_list[i].set_content(content_list[i]["content"])
@@ -628,15 +637,16 @@ class Cp_4(PressRelease):
         return min(100,6)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,f"//body//tbody//tr//a[text()='{cur_page+1}']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""        
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -645,7 +655,7 @@ class Cp_4(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -666,10 +676,10 @@ class Cp_4(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -691,22 +701,22 @@ class Cp_4(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver, 15)
+        wait = WebDriverWait(driver,30)
         try:
             rows = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//li")))
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -736,7 +746,9 @@ class Cp_4(PressRelease):
                 document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -749,7 +761,7 @@ class Cp_4(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else: 
                 document_list[i].set_content(content_list[i]["content"])
@@ -827,164 +839,26 @@ class Cp_5(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        #return min(100,)
         pass 
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        # wait = WebDriverWait(driver,15)
-        # #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
-        # driver.execute_script('arguments[0].click();', page_div)
+
         pass
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         pass         
-        # if url is None:
-        #     return from_tuple_retri(None,url)
-        
-        # isfile=is_file(url)
-        # if isfile:
-        #     try:
-        #         txt=_extracting_an_document(Document.from_url(url))
-        #         return from_tuple_retri(txt,"")
-        #     except Exception as e:
-        #         print(f'error in retrieve_content: {url}')
-        #         return from_tuple_retri(None,url)
-        
-        # url_list:list[str]=[]
-        # chrome_options = Options()
-        # chrome_options.add_argument("--enable-javascript")
-        # chrome_options.add_argument('--headless')
-        # driver2 = webdriver.Chrome(options=chrome_options)
-        # driver2.set_page_load_timeout(30) 
-        # max_attempts=5
-        # attempts=0 
-        # while attempts<max_attempts: 
-        #     try:
-        #         driver2.get(url)
-        #         break
-        #     except WebDriverException as e:
-        #         attempts += 1
-        #         if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
-        #             print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-        #             time.sleep(5)  # Wait for 5 seconds before retrying
-        #         else: 
-        #             return from_tuple_retri(None,url)
-        
-        # try:
-        #     url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-        #     for url_ele in url_eles:
-        #         new_url=url_ele.get_attribute('href')
-        #         isfile_2=is_file(new_url)
-        #         if isfile_2:
-        #             url_list.append(url_ele.get_attribute('href'))
-        #     url_list=extract_normal_link(url_list)[:5]
-        #     
-        #     for url_ in url_list:
-        #         total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        # except Exception as e:
-        #     ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
-            #b=True
-        # try:
-        #     #target_ele=driver2.find_element(By.XPATH,"").text
-        # except Exception:
-        #     print(f'error in retrieve_content: {url}')
-        #     driver2.quit()
-        #     return from_tuple_retri(None,url)
-        # target_ele=total_txt+target_ele
-        #if target_ele==0 or target_ele==None:
-        #     print(f'error in retrieve_content, content is empty, {url}')
-        #     from_tuple_retri("","")
-        # driver2.quit()
-        #return from_tuple_retri(target_ele,"")
+
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
         pass 
-        # wait = WebDriverWait(driver,15)
-        # try:
-        #     #target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "")))
-        #     rows=target_ele.find_elements(By.TAG_NAME,'li')
-        # except Exception as e:
-        #     if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
-        #         self.add_error_count(5)
-        #         return from_tuple_read([],[driver.current_url])
-        #     else:
-        #         raise(MaxErrorReached())
-        # document_list:list[Document]=[]
-        # urls:list[str]=[]
-        # err_urls:list[str]=[]
-        # for row_ in rows:
-        #     try:
-        #         #url_ele=row_.find_element(By.XPATH,"")
-        #         url=url_ele.get_attribute('href')
-        #         title=url_ele.text
-        #         #date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"")
-        #         if is_internal_link(base_url=self.base_url,link=url):
-                #     urls.append(url)
-                # else:
-                #     continue
-        #         document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-        #     except Exception as e:
-        #         if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
-        #             self.add_error_count()
-        #             continue
-        #         else:
-        #             raise(MaxErrorReached())
-        # content_list = Parallel(n_jobs=-1)(delayed(Cp_5.retrieve_content)(url) for url in urls)
-        # 
-        #for i in range(len(content_list)):
-        #     document_list[i].set_content(content_list[i]["content"])
-        #     err_url=content_list[i]["err_url"]
-        #     if err_url!="" and err_url!=None:
-        #         self.add_error_count()
-        #         err_urls.append(err_url)
-        #         if self.error_count>ERROR_COUNT:
-        #             raise(MaxErrorReached())
-        # return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
     def crawling(self)->tuple[list[Document],str]:
         return [],self.company_id
-        # try:
-        #     all_err_url:list[str]=[]
-        #     chrome_options = Options()
-        chrome_options.add_argument("--enable-javascript")
-        #     chrome_options.add_argument('--headless')
-        #     driver = webdriver.Chrome(options=chrome_options)
-        #     max_attempts=5
-        #     attempts=0
-        #     while attempts<max_attempts:
-        #         try:
-        #             driver.get(self.press_release_url)
-        #             break
-        #         except WebDriverException as e:
-        #             if 'net::ERR_CONNECTION_RESET' in str(e):
-        #                 attempts+=1
-        #                 print(f'Attempt {attempts} of {max_attempts} failed with error: {e}')
-        #                 time.sleep(5)
-        #             else:
-        #                 print('Problem with requesting the main page')
-        #                 raise(e)
-        #     time.sleep(0.5)
-        #     total_page=self.get_total_page(driver)
-        #     current_page=self.get_current_page(driver)
-        #     all_doc:list[Document]=[]
-        #     while(current_page<=total_page):
-        #         read_page_result=self.read_page(driver)
-        #         doc_list=read_page_result["doc_list"]
-        #         all_doc=all_doc+doc_list
-        #         err_url_list=read_page_result["err_url_list"]
-        #         all_err_url=all_err_url+err_url_list
-        #         if(current_page<total_page):
-        #             self.next_page(current_page,driver)
-        #         time.sleep(0.5)
-        #         current_page=current_page+1
-        #     driver.quit()
-        #     return all_doc,self.company_id
-        # except MaxErrorReached as e:
-        #     raise(MaxErrorReached(all_err_url,self.company_id))
-        
+
 class Cp_6(PressRelease):
     def __init__(self):
         base_url="https://www.panda.cn/"
@@ -1016,16 +890,17 @@ class Cp_6(PressRelease):
         return min(100,112)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='Page']//a[contains(text(),' > ')]")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -1034,7 +909,7 @@ class Cp_6(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -1055,10 +930,10 @@ class Cp_6(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -1078,7 +953,7 @@ class Cp_6(PressRelease):
         except Exception:
             print(f'error in retrieve_content: {url}')
             driver2.quit()
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             try: 
@@ -1086,18 +961,18 @@ class Cp_6(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url) 
+                return from_tuple_retri(None,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='NewsList']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1113,7 +988,9 @@ class Cp_6(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//div[@class='LiRight']/h4/span").text)
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -1131,7 +1008,7 @@ class Cp_6(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else: 
                 document_list[i].set_content(content_list[i]["content"])
@@ -1212,13 +1089,14 @@ class Cp_7(PressRelease):
         return min(100,11)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         xpath_=f"//div[@class='content_box']//ul[@class='clearfix']//a[normalize-space(text())='{cur_page+1}']"
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,xpath_)))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
@@ -1255,7 +1133,7 @@ class Cp_7(PressRelease):
                     return from_tuple_retri(None,url,target_date=None)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -1278,7 +1156,7 @@ class Cp_7(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
@@ -1288,13 +1166,13 @@ class Cp_7(PressRelease):
         return from_tuple_retri(target_ele,"",target_date=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='news']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1310,7 +1188,9 @@ class Cp_7(PressRelease):
             
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -1327,7 +1207,7 @@ class Cp_7(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else: 
                 document_list[i].set_content(content_list[i]["content"])
@@ -1409,12 +1289,13 @@ class Cp_8(PressRelease):
         return min(100,5)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//ul[@class='inner_paging']//a[normalize-space(text())='下一頁']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
@@ -1428,7 +1309,7 @@ class Cp_8(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -1449,10 +1330,10 @@ class Cp_8(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -1473,23 +1354,23 @@ class Cp_8(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url)
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele)
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='aboutcc']/div[@class='left']/div[@class='aboutccin']/table/tbody")))
             rows=target_ele.find_elements(By.TAG_NAME,'tr')
         except Exception as e:
             print(f"problem finding the list of news in a page:{driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1504,8 +1385,11 @@ class Cp_8(PressRelease):
                 title=url_ele.text
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//td[1]").text)
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -1516,13 +1400,13 @@ class Cp_8(PressRelease):
                 continue
             document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
         content_list = Parallel(n_jobs=-1)(delayed(Cp_8.retrieve_content)(url) for url in urls)
-        refined_document_list:=[]
+        refined_document_list:list[Document]=[]
         for i in range(len(content_list)):
             err_url=content_list[i]["err_url"]
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -1603,16 +1487,17 @@ class Cp_9(PressRelease):
         return min(100,23)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'a.page_a.page_next')))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -1621,7 +1506,7 @@ class Cp_9(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content with extracting doc: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -1642,10 +1527,10 @@ class Cp_9(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -1667,23 +1552,23 @@ class Cp_9(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url)     
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele)     
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.p_list")))
             rows=target_ele.find_elements(By.CSS_SELECTOR,'div.cbox-24')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1700,7 +1585,9 @@ class Cp_9(PressRelease):
             
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -1717,7 +1604,7 @@ class Cp_9(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -1798,15 +1685,16 @@ class Cp_10(PressRelease):
         return min(100,12)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//*[@id='pager_p']//a[text()='下一页']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -1815,7 +1703,7 @@ class Cp_10(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -1836,10 +1724,10 @@ class Cp_10(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -1861,23 +1749,23 @@ class Cp_10(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='w_newslistpage_list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1893,7 +1781,9 @@ class Cp_10(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span[@class='date']").text.replace('年','-').replace('月','-').replace('日',''))
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -1910,7 +1800,7 @@ class Cp_10(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -1991,15 +1881,16 @@ class Cp_11(PressRelease):
         return min(100,13)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""        
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -2008,7 +1899,7 @@ class Cp_11(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -2029,10 +1920,10 @@ class Cp_11(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -2047,31 +1938,31 @@ class Cp_11(PressRelease):
             b=True
             a=True
         try:                                                    
-            #target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//article[@class='bulletinshow']"))).text            
-            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='in_r']"))).text                        
+            #target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//article[@class='bulletinshow']"))).text            
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='in_r']"))).text                        
         except Exception:
             try: 
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
             except:
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='newslist']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -2087,7 +1978,9 @@ class Cp_11(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"./span").text.replace('.','-'))
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -2104,7 +1997,7 @@ class Cp_11(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -2185,12 +2078,13 @@ class Cp_12(PressRelease):
         return min(100,234)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
@@ -2204,7 +2098,7 @@ class Cp_12(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -2227,10 +2121,10 @@ class Cp_12(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -2252,23 +2146,23 @@ class Cp_12(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='news']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -2284,7 +2178,9 @@ class Cp_12(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span").text)
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -2301,7 +2197,7 @@ class Cp_12(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -2382,16 +2278,17 @@ class Cp_13(PressRelease):
         return min(100,26)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'末页')]")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -2400,7 +2297,7 @@ class Cp_13(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -2421,10 +2318,10 @@ class Cp_13(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -2446,23 +2343,23 @@ class Cp_13(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='TrendsList']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -2478,7 +2375,9 @@ class Cp_13(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//div[@class='date']").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -2495,7 +2394,7 @@ class Cp_13(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -2576,7 +2475,7 @@ class Cp_14(PressRelease):
         return min(100,83)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//button[@class='btn-next']")))
@@ -2584,10 +2483,11 @@ class Cp_14(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -2596,7 +2496,7 @@ class Cp_14(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -2617,10 +2517,10 @@ class Cp_14(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -2642,23 +2542,23 @@ class Cp_14(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='announce-list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -2676,7 +2576,9 @@ class Cp_14(PressRelease):
                 date_in_iso=extract_iso_date(month_in_iso+'-'+day_in_iso)
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -2693,7 +2595,7 @@ class Cp_14(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -2774,7 +2676,7 @@ class Cp_15(PressRelease):
         return min(100,38)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -2782,10 +2684,11 @@ class Cp_15(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -2794,7 +2697,7 @@ class Cp_15(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -2815,10 +2718,10 @@ class Cp_15(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -2840,23 +2743,23 @@ class Cp_15(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "ul.fl.list_all.w900")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -2872,7 +2775,9 @@ class Cp_15(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//b//span").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -2889,7 +2794,7 @@ class Cp_15(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -2970,7 +2875,7 @@ class Cp_16(PressRelease):
         return min(100,5)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -2978,10 +2883,11 @@ class Cp_16(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -3014,7 +2920,7 @@ class Cp_16(PressRelease):
                     return from_tuple_retri(None,url,date_in_iso=None)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -3037,7 +2943,7 @@ class Cp_16(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
@@ -3047,13 +2953,13 @@ class Cp_16(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='list_newspic2']")))
             rows=target_ele.find_elements(By.TAG_NAME,'dl')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -3070,7 +2976,9 @@ class Cp_16(PressRelease):
                 #date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"").text.replace('"','').strip()
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -3087,7 +2995,7 @@ class Cp_16(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -3169,7 +3077,7 @@ class Cp_17(PressRelease):
         return min(100,100)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),' >> ')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -3177,10 +3085,11 @@ class Cp_17(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -3189,7 +3098,7 @@ class Cp_17(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
         chrome_options = Options()
@@ -3210,10 +3119,10 @@ class Cp_17(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -3235,23 +3144,23 @@ class Cp_17(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='list_con']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -3267,7 +3176,9 @@ class Cp_17(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -3284,7 +3195,7 @@ class Cp_17(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -3365,7 +3276,7 @@ class Cp_18(PressRelease):
         return min(100,57)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@id='next_page']")))
@@ -3373,10 +3284,11 @@ class Cp_18(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         isfile=is_file(url)
         if isfile:
@@ -3409,7 +3321,7 @@ class Cp_18(PressRelease):
                     return from_tuple_retri(None,url,date_in_iso=None)
         
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -3433,7 +3345,7 @@ class Cp_18(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
@@ -3442,13 +3354,13 @@ class Cp_18(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='bk_child']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -3463,7 +3375,9 @@ class Cp_18(PressRelease):
                 title=url_ele.text
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -3480,7 +3394,7 @@ class Cp_18(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -3565,7 +3479,7 @@ class Cp_19(PressRelease):
         return min(100,54)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         
@@ -3575,9 +3489,10 @@ class Cp_19(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)        
+            return from_tuple_retri(None,url,date_in_iso=date_ele)        
         isfile=is_file(url)
         if isfile:
             try:
@@ -3585,7 +3500,7 @@ class Cp_19(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -3605,9 +3520,9 @@ class Cp_19(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)        
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)        
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -3630,26 +3545,26 @@ class Cp_19(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
 
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele:WebElement
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='nylisttt']")))
             rows=target_ele.find_elements(By.XPATH,'.//li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -3668,7 +3583,9 @@ class Cp_19(PressRelease):
 
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -3685,7 +3602,7 @@ class Cp_19(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -3768,7 +3685,7 @@ class Cp_20(PressRelease):
         return min(100,25)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -3776,9 +3693,10 @@ class Cp_20(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -3786,7 +3704,7 @@ class Cp_20(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -3806,9 +3724,9 @@ class Cp_20(PressRelease):
                     time.sleep(8)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -3831,23 +3749,23 @@ class Cp_20(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='list list2']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -3863,7 +3781,9 @@ class Cp_20(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span[@class='mhide']").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -3880,7 +3800,7 @@ class Cp_20(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -3964,17 +3884,18 @@ class Cp_21(PressRelease):
         return min(100,88)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='serve_list']/div[@class='tpxw1-2']//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -3982,7 +3903,7 @@ class Cp_21(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -4002,9 +3923,9 @@ class Cp_21(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4027,23 +3948,23 @@ class Cp_21(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='serve_list']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -4059,7 +3980,9 @@ class Cp_21(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//h5//span").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -4076,7 +3999,7 @@ class Cp_21(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -4156,7 +4079,7 @@ class Cp_22(PressRelease):
         return min(100,10)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,".//a[@class='a_next']")))
@@ -4164,9 +4087,10 @@ class Cp_22(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -4174,7 +4098,7 @@ class Cp_22(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -4194,9 +4118,9 @@ class Cp_22(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4219,28 +4143,23 @@ class Cp_22(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:                                                            
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, """
-                                                                    //ul[contains(concat(' ', normalize-space(@class), ' '), ' ul ') and
-                                                                    contains(concat(' ', normalize-space(@class), ' '), ' padd ') and
-                                                                    contains(concat(' ', normalize-space(@class), ' '), ' clearfix ') and
-                                                                    not(contains(concat(' ', normalize-space(@class), ' '), ' class4 '))]
-                                                                    """)))
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='ul padd clearfix']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -4252,12 +4171,15 @@ class Cp_22(PressRelease):
             try:
                 url_ele=row_.find_element(By.XPATH,".//a")
                 url=url_ele.get_attribute('href')
-                title=row_.find_element(By.XPATH,".//a//h2[@class='dot']")
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//a//time").text.replace('\n','-').strip())
+                title=row_.find_element(By.XPATH,".//a//h2[@class='dot']").text
+                date_ele=row_.find_element(By.XPATH,".//a//time").text.split('\n')
+                date_in_iso=extract_iso_date(date_ele[1]+'-'+date_ele[0])
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
-                    self.add_error_count()
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
+                    self.add_error_count()                    
                     continue
                 else:
                     raise(MaxErrorReached())
@@ -4273,7 +4195,7 @@ class Cp_22(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -4353,7 +4275,7 @@ class Cp_23(PressRelease):
         return min(100,12)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -4361,9 +4283,10 @@ class Cp_23(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -4371,7 +4294,7 @@ class Cp_23(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -4391,9 +4314,9 @@ class Cp_23(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4416,24 +4339,24 @@ class Cp_23(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='ul_list]")))
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='ul_list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -4449,7 +4372,9 @@ class Cp_23(PressRelease):
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -4466,7 +4391,7 @@ class Cp_23(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -4546,17 +4471,19 @@ class Cp_24(PressRelease):
         return min(100,4)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[img[@src='/statics/images/j17.png']]")))
+        # xpath_my=f"//div[@class='aos-animate']/p[{cur_page+2}]/a"
+        # page_div=wait.until(EC.element_to_be_clickable((By.XPATH,xpath_my)))
+        #/html/body/div[4]/div[4]/div[4]/p[6]/a
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -4564,7 +4491,7 @@ class Cp_24(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -4584,9 +4511,9 @@ class Cp_24(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4607,27 +4534,28 @@ class Cp_24(PressRelease):
         except Exception:
             try: 
                 target_ele=driver2.find_element(By.XPATH,'//body').text
+                date_ele=driver2.find_element(By.XPATH,"//div[@class='xwxq-top']//p").text.split(' ')[0]
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH,"//div[@class='qydt-box-con']")))
             rows=target_ele.find_elements(By.TAG_NAME,'div')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count:  
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -4642,7 +4570,9 @@ class Cp_24(PressRelease):
                 title=row_.find_element(By.XPATH,'.//a//h5').text
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -4659,7 +4589,7 @@ class Cp_24(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -4740,7 +4670,7 @@ class Cp_25(PressRelease):
         return min(100,136)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='>']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -4748,9 +4678,10 @@ class Cp_25(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -4758,7 +4689,7 @@ class Cp_25(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso="")
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -4778,9 +4709,9 @@ class Cp_25(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso="")
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4802,24 +4733,24 @@ class Cp_25(PressRelease):
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso="")
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso="") 
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)    
+        wait = WebDriverWait(driver,30)    
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='gwm_news']/ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -4834,8 +4765,10 @@ class Cp_25(PressRelease):
                 title=url_ele.get_attribute('data-title')
                 #date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"").text.replace('"','').strip()
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -4853,7 +4786,7 @@ class Cp_25(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -4934,7 +4867,7 @@ class Cp_26(PressRelease):
         return min(100,49)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@title='下一页]")))
@@ -4942,9 +4875,10 @@ class Cp_26(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -4952,7 +4886,7 @@ class Cp_26(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print(f'error in retrieve_content: {url}')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -4972,9 +4906,9 @@ class Cp_26(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else: 
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4989,31 +4923,31 @@ class Cp_26(PressRelease):
             b=True
             a=True
         try:
-            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='newsInfo']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='newsInfo']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
             except:
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='mod-news-5']")))
             rows=target_ele.find_elements(By.TAG_NAME,'div')
         except Exception as e:
             print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -5032,8 +4966,10 @@ class Cp_26(PressRelease):
                                                   (concat(" ",normalize-space(@class)," "),' md-mobile ') and 
                                                   )]//span""").text.replace('年','-').replace('月','-').replace('日','').strip())
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -5050,7 +4986,7 @@ class Cp_26(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -5130,7 +5066,7 @@ class Cp_27(PressRelease):
         return min(100,9)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -5138,9 +5074,10 @@ class Cp_27(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -5148,7 +5085,7 @@ class Cp_27(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print('error in retrieve_content')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument("--enable-javascript")
@@ -5159,9 +5096,9 @@ class Cp_27(PressRelease):
         except Exception:
             print('error in driver_connect')
             driver2.quit()
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -5176,31 +5113,31 @@ class Cp_27(PressRelease):
             b=True
             a=True
         try:
-            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='lfnews-content']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='lfnews-content']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
             except:
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='w_newslistpage_list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -5215,8 +5152,10 @@ class Cp_27(PressRelease):
                 title=url_ele.text
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span[@class='date']").text.replace('"','').strip())
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -5233,7 +5172,7 @@ class Cp_27(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -5313,7 +5252,7 @@ class Cp_28(PressRelease):
         return min(100,87)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='next']")))
@@ -5321,9 +5260,10 @@ class Cp_28(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -5331,7 +5271,7 @@ class Cp_28(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print('error in retrieve_content')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument('--headless')
@@ -5351,10 +5291,10 @@ class Cp_28(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else:
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
 
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -5367,31 +5307,31 @@ class Cp_28(PressRelease):
         except Exception as e:
             a=True
         try:
-            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='main-content']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='main-content']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
             except:
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='ui-article-list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'div')
         except Exception as e:
             print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -5406,8 +5346,10 @@ class Cp_28(PressRelease):
                 title=url_ele.text
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//p[@class='time']").text.replace('"','').strip())
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -5424,7 +5366,7 @@ class Cp_28(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -5504,7 +5446,7 @@ class Cp_29(PressRelease):
         return min(100,26)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='layui-laypage-next']")))
@@ -5512,9 +5454,10 @@ class Cp_29(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -5522,7 +5465,7 @@ class Cp_29(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print('error in retrieve_content')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument('--headless')
@@ -5542,10 +5485,10 @@ class Cp_29(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else:
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
-            return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -5558,31 +5501,31 @@ class Cp_29(PressRelease):
         except Exception as e:
             a=True
         try:
-            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//*[@id='c']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//*[@id='c']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
             except:
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='page-content']")))
             rows=target_ele.find_elements(By.TAG_NAME,'table')
         except Exception as e:
             print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -5597,8 +5540,10 @@ class Cp_29(PressRelease):
                 title=url_ele.text
                 date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//td[1]").text.replace('[','').replace(']','').strip())
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -5615,7 +5560,7 @@ class Cp_29(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
@@ -5696,7 +5641,7 @@ class Cp_30(PressRelease):
         return min(100,5)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
@@ -5704,9 +5649,10 @@ class Cp_30(PressRelease):
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
+        date_ele=None
         total_txt=""
         if url is None:
-            return from_tuple_retri(None,url)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
@@ -5714,7 +5660,7 @@ class Cp_30(PressRelease):
                 return from_tuple_retri(txt,"")
             except Exception as e:
                 print('error in retrieve_content')
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options = Options()
         chrome_options.add_argument('--headless')
@@ -5734,10 +5680,10 @@ class Cp_30(PressRelease):
                     time.sleep(5)  # Wait for 5 seconds before retrying
                 else:
                     print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url)
-            return from_tuple_retri(None,url)
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
-            url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -5750,31 +5696,31 @@ class Cp_30(PressRelease):
         except Exception as e:
             a=True
         try:
-            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='content-in']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='content-in']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
             except:
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
-                return from_tuple_retri(None,url)
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url) 
+            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.quit()
-        return from_tuple_retri(target_ele,"")
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,15)
+        wait = WebDriverWait(driver,30)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "ul[@class='list-new']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -5791,8 +5737,10 @@ class Cp_30(PressRelease):
                 day_in_iso=row_.find_element(By.XPATH,".//div[@class='day']").text.replace('日','')                                
                 date_in_iso=extract_iso_date(month_in_iso+'-'+day_in_iso)
             except Exception as e:
-                print(f'problem with crawling rows element in this page: {driver.current_url}')
-                if self.error_count<ERROR_COUNT and self.success_count*CONVERTION_RATE<self.__error_count: 
+                print(f'issue with find doc info in a row of a page {driver.current_url}')
+                if driver.current_url not in err_urls: 
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
                     self.add_error_count()
                     continue
                 else:
@@ -5809,7 +5757,7 @@ class Cp_30(PressRelease):
             if err_url!="" and err_url!=None:
                 self.add_error_count()
                 err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT:
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
