@@ -17,7 +17,7 @@ def extract_iso_date(string):
         return date_str
 
     else:
-        # If no pattern is found, return None
+        print(f'This string does not contain date in iso format {string}')
         raise(ValueError('The string does not contain date in iso format'))
 
 def is_internal_link(base_url:str, link:str)->bool:
