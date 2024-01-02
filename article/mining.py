@@ -12,7 +12,7 @@ _FILENAME='data/temp/extracting_text'
 def _extracting_an_document(document:Document)->str:
 ### Downloading doc
     f_name = document.url.split('/')[-1]
-    ext_name = f_name.split('.')[-1]
+    ext_name = f_name.split('.')[-1].lower()
     
     if ext_name == 'pdf': 
         txt=_extract_news_pdf(document.url,f_name)
@@ -41,8 +41,8 @@ def _extract_news_pdf_old (document_url:str,file_name:str=_FILENAME):
     return txt
 
 def _extract_news_pdf (document_url:str,file_name:str=_FILENAME)->str:
-    if document_url=='https://www1.hkexnews.hk/listedco/listconews/sehk/2018/1011/ltn201810111441.pdf': 
-        return ''
+    # if document_url=='https://www1.hkexnews.hk/listedco/listconews/sehk/2018/1011/ltn201810111441.pdf': 
+    #     return ''
     
     try:
         with requests.get(document_url, stream=True, timeout=100) as response:

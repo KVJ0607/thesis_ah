@@ -973,6 +973,8 @@ class Article:
             self.__published_at=published_at.isoformat()
         elif type(published_at)==str:
             self.__published_at=published_at
+        elif published_at==None: 
+            self.__published_at=None
         else:
             raise(TypeError("published_at should be of type datetime, not{}".format(type(published_at))))
         self.__api=api
@@ -1277,7 +1279,7 @@ class Document:
         elif type(published_at)==str:
             self.__published_at=published_at
         else:
-            print("Warning: published_at should be of type datetime, not{}".format(type(published_at)))
+            print("Warning in set_published_at: published_at should be of type datetime, not{}".format(type(published_at)))
             print(f"url{self.url}")
             self.__published_at=None
         

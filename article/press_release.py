@@ -2,6 +2,8 @@ import re
 import time
 import math
 
+# from selenium.webdriver.chrome.service import Service
+# from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.chrome.options import Options
@@ -9,17 +11,20 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
-from selenium.common.exceptions import UnexpectedAlertPresentException, StaleElementReferenceException, ElementClickInterceptedException, NoSuchElementException, TimeoutException, WebDriverException, InvalidArgumentException
-from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import WebDriverException
+#from selenium.common.exceptions import UnexpectedAlertPresentException, StaleElementReferenceException, ElementClickInterceptedException, NoSuchElementException, TimeoutException, WebDriverException, InvalidArgumentException
+#from selenium.webdriver.common.keys import Keys
 from joblib import Parallel, delayed
-from bs4 import BeautifulSoup
-from datetime import datetime
+#from bs4 import BeautifulSoup
+#from datetime import datetime
 from utils.exception import MaxErrorReached
-from crawling import PressRelease, driver_connect, is_file,from_tuple_retri,from_tuple_read,extract_normal_link,is_internal_link,extract_iso_date
+from utils.crawling import PressRelease, driver_connect, is_file,from_tuple_retri,from_tuple_read,extract_normal_link,is_internal_link,extract_iso_date
 from company.company import *
 from article.mining import _extracting_an_document
+
+
 ERROR_COUNT = 20
-CONVERTION_RATE=0.3
+CONVERTION_RATE=0.5 #~70% hit rate
 class Cp_1(PressRelease):
     def __init__(self):
         base_url = "https://www.ftol.com.cn/"
@@ -72,16 +77,25 @@ class Cp_1(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         #driver connect to url
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument("--headless")
-        driver2 = webdriver.Chrome(options=chrome_options)        
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)        
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -123,8 +137,8 @@ class Cp_1(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.nr > div.Re_three > ul")))
             rows=target_ele.find_elements(By.TAG_NAME,"li")
@@ -176,15 +190,30 @@ class Cp_1(PressRelease):
         
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
+            #ajkhmmldknmfjnmeedkbkkojgobmljda
             all_err_url:list[str]=[]
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+         
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if "net::ERR_CONNECTION_RESET" in str(e):
@@ -199,7 +228,8 @@ class Cp_1(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list        
                 err_url_list=read_page_result["err_url_list"] 
@@ -263,16 +293,25 @@ class Cp_2(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -315,8 +354,8 @@ class Cp_2(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#mm-0>div.nybody_box>div.wrap>div.nybox_box>div.nybox_right>ul.nynews_box")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -367,19 +406,28 @@ class Cp_2(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            # chrome_options.add_argument('--headless')
-            # driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -394,7 +442,8 @@ class Cp_2(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -460,16 +509,25 @@ class Cp_3(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -513,8 +571,8 @@ class Cp_3(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body>div.wrap>ul.support_list')))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -565,19 +623,28 @@ class Cp_3(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            # chrome_options.add_argument('--headless')
-            # driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -592,7 +659,8 @@ class Cp_3(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -658,16 +726,25 @@ class Cp_4(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -710,8 +787,8 @@ class Cp_4(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             rows = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//li")))
         except Exception as e:
@@ -770,19 +847,28 @@ class Cp_4(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            # chrome_options.add_argument('--headless')
-            # driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -797,7 +883,8 @@ class Cp_4(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -852,11 +939,18 @@ class Cp_5(PressRelease):
         pass         
 
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
         pass 
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         return [],self.company_id
 
 class Cp_6(PressRelease):
@@ -912,16 +1006,25 @@ class Cp_6(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -965,8 +1068,8 @@ class Cp_6(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='NewsList']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -1017,19 +1120,28 @@ class Cp_6(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            # chrome_options.add_argument('--headless')
-            # driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1044,7 +1156,8 @@ class Cp_6(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -1112,16 +1225,25 @@ class Cp_7(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=None)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0
         while attempts<max_attempts:
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -1165,8 +1287,8 @@ class Cp_7(PressRelease):
         
         return from_tuple_retri(target_ele,"",target_date=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='news']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -1217,19 +1339,28 @@ class Cp_7(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            # chrome_options.add_argument('--headless')
-            # driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1244,7 +1375,8 @@ class Cp_7(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -1312,16 +1444,25 @@ class Cp_8(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -1363,8 +1504,8 @@ class Cp_8(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='aboutcc']/div[@class='left']/div[@class='aboutccin']/table/tbody")))
             rows=target_ele.find_elements(By.TAG_NAME,'tr')
@@ -1415,19 +1556,28 @@ class Cp_8(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1442,7 +1592,8 @@ class Cp_8(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -1509,16 +1660,25 @@ class Cp_9(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -1561,8 +1721,8 @@ class Cp_9(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.p_list")))
             rows=target_ele.find_elements(By.CSS_SELECTOR,'div.cbox-24')
@@ -1613,19 +1773,29 @@ class Cp_9(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1640,7 +1810,8 @@ class Cp_9(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -1706,16 +1877,25 @@ class Cp_10(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -1758,8 +1938,8 @@ class Cp_10(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='w_newslistpage_list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -1809,19 +1989,29 @@ class Cp_10(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1836,7 +2026,8 @@ class Cp_10(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -1902,16 +2093,25 @@ class Cp_11(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -1955,8 +2155,8 @@ class Cp_11(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='newslist']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -2006,19 +2206,29 @@ class Cp_11(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -2033,7 +2243,8 @@ class Cp_11(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -2101,18 +2312,27 @@ class Cp_12(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)                                
+        driver2=webdriver.Chrome(options=chrome_options)                                
             
         
-        driver2.set_page_load_timeout(30) 
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -2155,8 +2375,8 @@ class Cp_12(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='news']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -2206,19 +2426,29 @@ class Cp_12(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -2233,7 +2463,8 @@ class Cp_12(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -2300,16 +2531,25 @@ class Cp_13(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -2352,8 +2592,8 @@ class Cp_13(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='TrendsList']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -2403,19 +2643,29 @@ class Cp_13(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -2430,7 +2680,8 @@ class Cp_13(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -2499,16 +2750,25 @@ class Cp_14(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -2551,8 +2811,8 @@ class Cp_14(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='announce-list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -2604,19 +2864,29 @@ class Cp_14(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -2631,7 +2901,8 @@ class Cp_14(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -2700,16 +2971,25 @@ class Cp_15(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -2752,8 +3032,8 @@ class Cp_15(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "ul.fl.list_all.w900")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -2803,19 +3083,29 @@ class Cp_15(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -2830,7 +3120,8 @@ class Cp_15(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -2899,16 +3190,25 @@ class Cp_16(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=None)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -2952,8 +3252,8 @@ class Cp_16(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='list_newspic2']")))
             rows=target_ele.find_elements(By.TAG_NAME,'dl')
@@ -3005,19 +3305,29 @@ class Cp_16(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -3032,7 +3342,8 @@ class Cp_16(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -3101,16 +3412,25 @@ class Cp_17(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -3153,8 +3473,8 @@ class Cp_17(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='list_con']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -3204,19 +3524,29 @@ class Cp_17(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -3231,7 +3561,8 @@ class Cp_17(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -3300,16 +3631,25 @@ class Cp_18(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=None)
         
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -3353,8 +3693,8 @@ class Cp_18(PressRelease):
             return from_tuple_retri("",url,date_in_iso=None)
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='bk_child']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -3406,19 +3746,29 @@ class Cp_18(PressRelease):
     
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -3433,7 +3783,8 @@ class Cp_18(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -3502,16 +3853,25 @@ class Cp_19(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -3556,8 +3916,8 @@ class Cp_19(PressRelease):
 
 
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele:WebElement
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='nylisttt']")))
@@ -3611,19 +3971,29 @@ class Cp_19(PressRelease):
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -3640,7 +4010,8 @@ class Cp_19(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -3706,16 +4077,25 @@ class Cp_20(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -3758,8 +4138,8 @@ class Cp_20(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='list list2']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -3808,19 +4188,29 @@ class Cp_20(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -3835,7 +4225,8 @@ class Cp_20(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -3905,16 +4296,25 @@ class Cp_21(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -3957,8 +4357,8 @@ class Cp_21(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='serve_list']//ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -4007,19 +4407,29 @@ class Cp_21(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -4034,7 +4444,8 @@ class Cp_21(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -4100,16 +4511,25 @@ class Cp_22(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -4152,8 +4572,8 @@ class Cp_22(PressRelease):
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:                                                            
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='ul padd clearfix']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -4203,19 +4623,29 @@ class Cp_22(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -4230,7 +4660,8 @@ class Cp_22(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -4296,16 +4727,25 @@ class Cp_23(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -4349,8 +4789,8 @@ class Cp_23(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='ul_list']")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
@@ -4399,19 +4839,29 @@ class Cp_23(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -4426,7 +4876,8 @@ class Cp_23(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -4493,16 +4944,25 @@ class Cp_24(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -4548,8 +5008,8 @@ class Cp_24(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH,"//div[@class='qydt-box-con']")))
             rows=target_ele.find_elements(By.TAG_NAME,'div')
@@ -4596,21 +5056,32 @@ class Cp_24(PressRelease):
                 document_list[i].set_published_at(content_list[i]["date_in_iso"])
                 refined_document_list.append(document_list[i])
                 self.add_success_count()
+        print(f'success in read page of company_id:{self.company_id}')
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -4625,7 +5096,8 @@ class Cp_24(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -4671,9 +5143,9 @@ class Cp_25(PressRelease):
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='>']")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='>']")))
+        #news_list
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/main/div[@class='news_bottom_bg']/div[@class='news_bottom']/div[@class='news_list']/div/div/div/a[@class='layui-laypage-next']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
@@ -4691,16 +5163,25 @@ class Cp_25(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso="")
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -4711,7 +5192,7 @@ class Cp_25(PressRelease):
                     print(f'error: receive_content function cannot connect to {url}')
                     return from_tuple_retri(None,url,date_in_iso="")
         try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"/html/body//a")))
             for url_ele in url_eles:
                 new_url=url_ele.get_attribute('href')
                 isfile_2=is_file(new_url)
@@ -4724,9 +5205,7 @@ class Cp_25(PressRelease):
         except Exception as e:
             print(f'Error in extracting content from other url elements from one url in retrieve_content function:{url}')
         try:
-            target_ele=driver2.find_element(By.XPATH,"//div[@class='news_content']").text
-            
-            date_ele=driver2.find_element(By.XPATH,"//div[@class='news_title_tool']//span[@class'r']").text
+            target_ele=driver2.find_element(By.XPATH,"//div[@class='news_content']").text            
         except Exception:
             try: 
                 target_ele=driver2.find_element(By.XPATH,'//body').text
@@ -4743,11 +5222,12 @@ class Cp_25(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)    
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)    
         try:
             target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='gwm_news']/ul")))
-            rows=target_ele.find_elements(By.TAG_NAME,'li')
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/main/div[@class='news_bottom_bg']/div[@class='news_bottom']/div[@class='news_list']/div/ul")))
+            rows=target_ele.find_elements(By.XPATH,'./li')
         except Exception as e:
             print("problem finding the list of news in a page")
             if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
@@ -4760,10 +5240,10 @@ class Cp_25(PressRelease):
         err_urls:list[str]=[]
         for row_ in rows:
             try:
-                url_ele=row_.find_element(By.XPATH,"a")
+                url_ele=row_.find_element(By.XPATH,"./a")
                 url=url_ele.get_attribute('href')
                 title=url_ele.get_attribute('data-title')
-                #date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"").text.replace('"','').strip()
+                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"./a/div[@class='time_box']/div[@class='pub-times']").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
                 if driver.current_url not in err_urls: 
@@ -4777,7 +5257,7 @@ class Cp_25(PressRelease):
                     urls.append(url)
             else:
                 continue
-            document_list.append(Document(url,title,None,self.press_release_url,None,None,self.company_id))
+            document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
         content_list = Parallel(n_jobs=-1)(delayed(Cp_25.retrieve_content)(url) for url in urls)
         refined_document_list:list[Document]=[]
         for i in range(len(content_list)):
@@ -4790,24 +5270,35 @@ class Cp_25(PressRelease):
                     raise(MaxErrorReached())
             else:
                 document_list[i].set_content(content_list[i]["content"])
-                document_list[i].set_published_at(content_list[i]["date_in_iso"])
                 refined_document_list.append(document_list[i])
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        #chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+            
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome://extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
+
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -4822,7 +5313,8 @@ class Cp_25(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -4868,9 +5360,7 @@ class Cp_26(PressRelease):
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@title='下一页]")))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[@class='wrap-layer']/div/div[@class='in-right in-right2']/div[@class='page-wrap ft18']/div[@class='page']/ul/li[@class='next']/a")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
@@ -4888,16 +5378,25 @@ class Cp_26(PressRelease):
                 print(f'error in retrieve_content: {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30) 
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(45) 
         max_attempts=5
         attempts=0 
         while attempts<max_attempts: 
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -4923,7 +5422,7 @@ class Cp_26(PressRelease):
             b=True
             a=True
         try:
-            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='newsInfo']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"html/body/div[@class='wrap-layer']/div[@class='in-right in-right2']/div[@class='newsInfo']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
@@ -4940,11 +5439,11 @@ class Cp_26(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='mod-news-5']")))
-            rows=target_ele.find_elements(By.TAG_NAME,'div')
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[@class='wrap-layer']/div/div[@class='in-right in-right2']/div[@class='mod-news-5']")))
+            rows=target_ele.find_elements(By.XPATH,'./div')
         except Exception as e:
             print("problem finding the list of news in a page")
             if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
@@ -4956,15 +5455,14 @@ class Cp_26(PressRelease):
         urls:list[str]=[]
         err_urls:list[str]=[]
         for row_ in rows:
-            try:
-                url_ele=row_.find_element(By.XPATH,".//div[@class='item-tit']//a")
+            if 'item-nopic' in row_.get_attribute('class'):
+                continue
+            try:#contains(@class, 'class1')
+                url_ele=row_.find_element(By.XPATH,"./div[@class='item-cnt']/div[contains(@class,'item-tit')]/a")
                 url=url_ele.get_attribute('href')
                 title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"""
-                                              .//div[contains(
-                                                  (concat(" ",normalize-space(@class)," "),' item-date ') and 
-                                                  (concat(" ",normalize-space(@class)," "),' md-mobile ') and 
-                                                  )]//span""").text.replace('年','-').replace('月','-').replace('日','').strip())
+                date_ele=row_.find_element(By.XPATH,"./div[@class='item-date md-pc']").text.split('\n')
+                date_in_iso=date_ele[1].replace('/','-')+'-'+date_ele[0]
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
                 if driver.current_url not in err_urls: 
@@ -4994,19 +5492,27 @@ class Cp_26(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        #chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -5021,7 +5527,8 @@ class Cp_26(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -5029,6 +5536,7 @@ class Cp_26(PressRelease):
                 if(current_page<total_page):
                     self.next_page(current_page,driver)
                 time.sleep(0.5)
+                
                 current_page=current_page+1
             driver.quit()
             return all_doc,self.company_id
@@ -5067,8 +5575,8 @@ class Cp_27(PressRelease):
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))                                                                    
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/span[@id='DeltaPlaceHolderMain']/div[2]/div[@class='column-right']/div[@class='conlumn-right-one']/div//p[@id='pager_p']//a[contains(text(),'下一页')]")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
         driver.execute_script('arguments[0].click();', page_div)
 
@@ -5087,16 +5595,34 @@ class Cp_27(PressRelease):
                 print('error in retrieve_content')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2 = webdriver.Chrome(options=chrome_options)
-        try:
-            driver_connect(driver2,url)
-        except Exception:
-            print('error in driver_connect')
-            driver2.quit()
-            return from_tuple_retri(None,url,date_in_iso=date_ele)
+        driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        max_attempts=5
+        attempts=0
+        while attempts<max_attempts:
+            try:
+                driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
+                break
+            except WebDriverException as e:
+                attempts += 1
+                if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
+                    print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
+                    time.sleep(5)  # Wait for 5 seconds before retrying
+                else:
+                    print(f'error: receive_content function cannot connect to {url}')
+                    return from_tuple_retri(None,url,date_in_iso=date_ele)
         try:
             url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
@@ -5113,7 +5639,7 @@ class Cp_27(PressRelease):
             b=True
             a=True
         try:
-            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='lfnews-content']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"/html/body/span[@id='DeltaPlaceHolderMain']/div[@class='lfnews-content']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
@@ -5130,10 +5656,10 @@ class Cp_27(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//ul[@class='w_newslistpage_list']")))
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/span[@id='DeltaPlaceHolderMain']/div[2]/div[@class='column-right']/div//div[@id='MSOZoneCell_WebPartWPQ3']/div/div/div[@id='ctl00_SPWebPartManager1_g_9bcf6e15_e0de_4d64_8db9_15227dcb295e']/div[@class='w_newslistpage_box']/div/div[@class='w_newslistpage_body']/ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print("problem finding the list of news in a page")
@@ -5147,10 +5673,10 @@ class Cp_27(PressRelease):
         err_urls:list[str]=[]
         for row_ in rows:
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
+                url_ele=row_.find_element(By.XPATH,"./span[@class='title']/a")
                 url=url_ele.get_attribute('href')
                 title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span[@class='date']").text.replace('"','').strip())
+                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"./span[@class='date']").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
                 if driver.current_url not in err_urls: 
@@ -5180,19 +5706,29 @@ class Cp_27(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -5207,7 +5743,8 @@ class Cp_27(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -5255,7 +5792,7 @@ class Cp_28(PressRelease):
         wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='next']")))
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[@class='page-box news-page news-list-page']/div/div[@class='main-content']/div[@id='Pagination']/div[@class='page']/a[@class='next']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
@@ -5273,16 +5810,25 @@ class Cp_28(PressRelease):
                 print('error in retrieve_content')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
-        driver2 = webdriver.Chrome(options=chrome_options)
+        driver2=webdriver.Chrome(options=chrome_options)
         driver2.set_page_load_timeout(30)
         max_attempts=5
         attempts=0
         while attempts<max_attempts:
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -5307,7 +5853,7 @@ class Cp_28(PressRelease):
         except Exception as e:
             a=True
         try:
-            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='main-content']"))).text
+            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"/html/body/div[includes(@class,'main-container')]/div[@class='main-content']"))).text
         except Exception:
             try:
                 target_ele=driver2.find_element(By.TAG_NAME,'body').text
@@ -5324,11 +5870,11 @@ class Cp_28(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
-        try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='ui-article-list']")))
-            rows=target_ele.find_elements(By.TAG_NAME,'div')
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
+        try:                                                                    #page-box news-page news-list-page
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[contains(@class,'page-box') and contains(@class,'news-page') and contains(@class,'news-list-page')]/div/div[@class='main-content']/div[@class='ui-article-list']")))
+            rows=target_ele.find_elements(By.XPATH,'./div')
         except Exception as e:
             print("problem finding the list of news in a page")
             if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
@@ -5341,10 +5887,10 @@ class Cp_28(PressRelease):
         err_urls:list[str]=[]
         for row_ in rows:
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
+                url_ele=row_.find_element(By.XPATH,"./div/a")
                 url=url_ele.get_attribute('href')
                 title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//p[@class='time']").text.replace('"','').strip())
+                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"./p").text.replace('"','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
                 if driver.current_url not in err_urls: 
@@ -5374,19 +5920,29 @@ class Cp_28(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -5401,7 +5957,8 @@ class Cp_28(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -5416,6 +5973,7 @@ class Cp_28(PressRelease):
             raise(MaxErrorReached(all_err_url,self.company_id))
 
 class Cp_29(PressRelease):
+    
     def __init__(self):
         base_url="https://development.coscoshipping.com/"
         press_release_url="https://development.coscoshipping.com/col/col1555/index.html"
@@ -5424,6 +5982,7 @@ class Cp_29(PressRelease):
         self.__error_count=0
         self.__success_count=0
         self.__robots_txt=None 
+        #common='/html/body/div/table[4]/tbody/tr'
 
     @property
     def error_count(self):
@@ -5448,8 +6007,8 @@ class Cp_29(PressRelease):
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
         #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='layui-laypage-next']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]"))) 
+        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div/table[4]/tbody/tr/td[3]/table[2]/tbody/tr/td/div/div[@class='pagination']//a[@class='layui-laypage-next']")))
         driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
@@ -5467,16 +6026,25 @@ class Cp_29(PressRelease):
                 print('error in retrieve_content')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
-        chrome_options = Options()
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
-        driver2 = webdriver.Chrome(options=chrome_options)
+        driver2=webdriver.Chrome(options=chrome_options)
         driver2.set_page_load_timeout(30)
         max_attempts=5
         attempts=0
         while attempts<max_attempts:
             try:
                 driver2.get(url)
+                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
+                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
+                #driver2.find_element(By.ID,'save_button').click() 
+                #driver2.get(url)
                 break
             except WebDriverException as e:
                 attempts += 1
@@ -5518,10 +6086,10 @@ class Cp_29(PressRelease):
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
         #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,40)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='page-content']")))
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div/table[4]/tbody/tr/td[3]/table[2]/tbody/tr/td/div/div[@class='page-content']")))
             rows=target_ele.find_elements(By.TAG_NAME,'table')
         except Exception as e:
             print("problem finding the list of news in a page")
@@ -5535,10 +6103,10 @@ class Cp_29(PressRelease):
         err_urls:list[str]=[]
         for row_ in rows:
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
+                url_ele=row_.find_element(By.XPATH,"./tbody/tr/td[2]/a")
                 url=url_ele.get_attribute('href')
                 title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//td[1]").text.replace('[','').replace(']','').strip())
+                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,"./tbody/tr/td[1]").text.replace('[','').replace(']','').strip())
             except Exception as e:
                 print(f'issue with find doc info in a row of a page {driver.current_url}')
                 if driver.current_url not in err_urls: 
@@ -5568,216 +6136,29 @@ class Cp_29(PressRelease):
                 self.add_success_count()
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
-    def crawling(self)->tuple[list[Document],str]:
-        try:
-            all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
-            max_attempts=5
-            attempts=0
-            while attempts<max_attempts:
-                try:
-                    driver.get(self.press_release_url)
-                    break
-                except WebDriverException as e:
-                    if 'net::ERR_CONNECTION_RESET' in str(e):
-                        attempts+=1
-                        print(f'Attempt {attempts} of {max_attempts} failed with error: {e}')
-                        time.sleep(5)
-                    else:
-                        print('Problem with requesting the main page')
-                        raise(e)
-            time.sleep(0.5)
-            total_page=self.get_total_page(driver)
-            current_page=self.get_current_page(driver)
-            all_doc:list[Document]=[]
-            while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
-                doc_list=read_page_result["doc_list"]
-                all_doc=all_doc+doc_list
-                err_url_list=read_page_result["err_url_list"]
-                all_err_url=all_err_url+err_url_list
-                if(current_page<total_page):
-                    self.next_page(current_page,driver)
-                time.sleep(0.5)
-                current_page=current_page+1
-            driver.quit()
-            return all_doc,self.company_id
-        except MaxErrorReached as e:
-            raise(MaxErrorReached(all_err_url,self.company_id))
-        
-
-class Cp_30(PressRelease):
-    def __init__(self):
-        base_url="https://www.andre.com.cn/"
-        press_release_url="https://www.andre.com.cn/index.php?m=content&c=index&a=lists&catid=14"
-        h_code="02218.HK".lower()
-        super().__init__(base_url,press_release_url,h_code)
-        self.__error_count=0
-        self.__success_count=0
-        self.__robots_txt='https://www.andre.com.cn/robots.txt'
-
-    @property
-    def error_count(self):
-        return self.__error_count
-    
-    @property
-    def success_count(self):
-        return self.__success_count
-
-    def add_error_count(self,add_error_count_:int=1)->None:
-        self.__error_count=self.__error_count+add_error_count_
-
-    def add_success_count(self,add_count:int=1)->None: 
-        self.__success_count=self.__success_count+add_count
-
-    def get_current_page(self,driver:WebDriver)->int:
-        return 1
-
-    def get_total_page(self,driver:WebDriver)->int:
-        return min(100,5)
-
-    def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,30)
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"")))
-        driver.execute_script('arguments[0].click();', page_div)
-
-    @staticmethod
-    def retrieve_content(url:str)->dict[str,str|None]:
-        date_ele=None
-        total_txt=""
-        if url is None:
-            return from_tuple_retri(None,url,date_in_iso=date_ele)
-        isfile=is_file(url)
-        if isfile:
-            try:
-                txt=_extracting_an_document(Document.from_url(url))
-                return from_tuple_retri(txt,"")
-            except Exception as e:
-                print('error in retrieve_content')
-                return from_tuple_retri(None,url,date_in_iso=date_ele)
-        url_list:list[str]=[]
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        #if PROXY is not None: 
+            #chrome_options.add_extension(extension_path)
+            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
+        chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
-        driver2 = webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(30)
-        max_attempts=5
-        attempts=0
-        while attempts<max_attempts:
-            try:
-                driver2.get(url)
-                break
-            except WebDriverException as e:
-                attempts += 1
-                if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
-                    print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-                    time.sleep(5)  # Wait for 5 seconds before retrying
-                else:
-                    print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url,date_in_iso=date_ele)
-            return from_tuple_retri(None,url,date_in_iso=date_ele)
-        try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute('href')
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(url_ele.get_attribute('href'))
-            url_list=extract_normal_link(url_list)
-            
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            a=True
-        try:
-            target_ele=WebDriverWait(driver2,30).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='content-in']"))).text
-        except Exception:
-            try:
-                target_ele=driver2.find_element(By.TAG_NAME,'body').text
-            except:
-                print(f'error in retrieve_content: {driver2.current_url}')
-                driver2.quit()
-                return from_tuple_retri(None,url,date_in_iso=date_ele)
-        target_ele=total_txt+target_ele
-        if target_ele==0 or target_ele==None:
-            print(f'error in retrieve_content, content is empty, {url}')
-            driver2.quit()
-            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
-        driver2.quit()
-        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
-        #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
-
-    def read_page(self,driver:WebDriver)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,30)
-        try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "ul[@class='list-new']")))
-            rows=target_ele.find_elements(By.TAG_NAME,'li')
-        except Exception as e:
-            print("problem finding the list of news in a page")
-            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
-                self.add_error_count(5)
-                return from_tuple_read([],[driver.current_url])
-            else:
-                raise(MaxErrorReached())
-        document_list:list[Document]=[]
-        urls:list[str]=[]
-        err_urls:list[str]=[]
-        for row_ in rows:
-            try:
-                url_ele=row_.find_element(By.XPATH,"a")
-                url=url_ele.get_attribute('href')
-                title=url_ele.text
-                month_in_iso=row_.find_element(By.XPATH,".//div[@class='month']").text.replace('年','-').replace('月','')
-                day_in_iso=row_.find_element(By.XPATH,".//div[@class='day']").text.replace('日','')                                
-                date_in_iso=extract_iso_date(month_in_iso+'-'+day_in_iso)
-            except Exception as e:
-                print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if driver.current_url not in err_urls: 
-                    err_urls.append(driver.current_url)
-                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
-                    self.add_error_count()
-                    continue
-                else:
-                    raise(MaxErrorReached())
-            if is_internal_link(base_url=self.base_url,link=url):
-                urls.append(url)
-            else:
-                continue
-            document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_30.retrieve_content)(url) for url in urls)
-        refined_document_list:list[Document]=[]
-        for i in range(len(content_list)):
-            err_url=content_list[i]["err_url"]
-            if err_url!="" and err_url!=None:
-                self.add_error_count()
-                err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
-                    raise(MaxErrorReached())
-            else:
-                document_list[i].set_content(content_list[i]["content"])
-                refined_document_list.append(document_list[i])
-                self.add_success_count()
-        return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
-
-    def crawling(self)->tuple[list[Document],str]:
+        #chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
-            chrome_options = Options()
-            chrome_options.add_argument("--enable-javascript")
-            #chrome_options.add_argument('--headless')
-            #driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Chrome()
+            driver=webdriver.Chrome(options=chrome_options)
+
+
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
+                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
+                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
+                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
+                    #driver.find_element(By.ID,'save_button').click()    
+                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -5792,7 +6173,8 @@ class Cp_30(PressRelease):
             current_page=self.get_current_page(driver)
             all_doc:list[Document]=[]
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver)
+                read_page_result=self.read_page(driver,is_proxy)
+                print(f'finish crawling page{current_page} of {self.company_id}')
                 doc_list=read_page_result["doc_list"]
                 all_doc=all_doc+doc_list
                 err_url_list=read_page_result["err_url_list"]
@@ -5805,3 +6187,4 @@ class Cp_30(PressRelease):
             return all_doc,self.company_id
         except MaxErrorReached as e:
             raise(MaxErrorReached(all_err_url,self.company_id))
+    

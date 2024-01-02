@@ -8,6 +8,8 @@ requests==2.31.0
 #web crawling
 selenium==4.16.0
 joblib
+webdriver-manager
+selenium-wire
 
 #extracting text
 pypandoc==1.12

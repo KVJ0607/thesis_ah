@@ -4,21 +4,55 @@ from company.company import *
 from company.orm import Object2Relational
 from urllib.parse import urlparse
 
+def is_iso_date(string): 
+    if string ==None or type(string)!=str: 
+        return False
+    iso_date_pattern = r'(\d{4}-\d{2}-\d{2})'
+    iso_date_pattern2 = r'(\d{4}-\d{1}-\d{1})'
+    iso_date_pattern3 = r'(\d{4}-\d{1}-\d{2})'
+    iso_date_pattern4 = r'(\d{4}-\d{2}-\d{1})'
+    
+    match = re.search(iso_date_pattern, string)
+    match2 = re.search(iso_date_pattern2, string)
+    match3 = re.search(iso_date_pattern3, string)
+    match4 = re.search(iso_date_pattern4, string)
+    
+    test_set=set()
+    test_set.update([match,match2,match3,match4])
+    
+    if len(test_set) >1: 
+        return True 
+    else: 
+        return False
+    
 def extract_iso_date(string):
     # ISO 8601 date format pattern (basic, without considering week numbers or ordinal dates)
-    iso_date_pattern = r'\d{4}-\d{2}-\d{2}'
-
+    iso_date_pattern = r'(\d{4}-\d{2}-\d{2})'
+    iso_date_pattern2 = r'(\d{4}-\d{1}-\d{1})'
+    iso_date_pattern3 = r'(\d{4}-\d{1}-\d{2})'
+    iso_date_pattern4 = r'(\d{4}-\d{2}-\d{1})'
     # Search for the pattern
     match = re.search(iso_date_pattern, string)
     if match:
         date_str = match.group()
         # Validate that the extracted string is a valid date
-        datetime.fromisoformat(date_str)
-        return date_str
-
-    else:
-        print(f'This string does not contain date in iso format {string}')
-        raise(ValueError('The string does not contain date in iso format'))
+    else: 
+        match2 = re.search(iso_date_pattern2, string)
+        match3 = re.search(iso_date_pattern3, string)
+        match4 = re.search(iso_date_pattern4, string)
+        if match2: 
+            date_str_ele=match2.group()
+            date_str=date_str_ele[0:5]+'0'+date_str_ele[5:7]+'0'+date_str_ele[7:8]
+        elif match3: 
+            date_str_ele=match3.group()
+            date_str=date_str_ele[0:5]+'0'+date_str_ele[5:7]+date_str_ele[7:9]
+        elif match4:
+            date_str_ele=match4.group()
+            date_str=date_str_ele[0:5]+date_str_ele[5:8]+'0'+date_str_ele[8:9]
+        else:
+            print(f'This string does not contain date in iso format {string}')
+            raise(ValueError('The string does not contain date in iso format'))
+    return date_str
 
 def is_internal_link(base_url:str, link:str)->bool:
     """
@@ -28,12 +62,17 @@ def is_internal_link(base_url:str, link:str)->bool:
     :param link: The link to be checked.
     :return: True if the link is internal, False otherwise.
     """
+    if isinstance(link, bytes):
+        link = link.decode('utf-8')
+        
     base_parsed = urlparse(base_url)
     link_parsed = urlparse(link)
-
-    # Links are considered internal if they have the same netloc or
-    # if the link doesn't have a netloc but has a path (relative link).
-    return (link_parsed.netloc == base_parsed.netloc or not link_parsed.netloc) and link_parsed.scheme in ('', 'http', 'https')
+    # Normalize the base domain to exclude 'www.' for consistent comparison
+    base_domain = base_parsed.netloc.replace('www.', '')
+    link_domain = link_parsed.netloc.replace('www.', '')
+    
+    # Links are considered internal if they have the same domain or subdomain
+    return (link_domain == base_domain or link_domain.endswith('.' + base_domain)) and link_parsed.scheme in ('', 'http', 'https')
 
 def extract_normal_link(url_list:list[str]): 
     result_list:list[str]=[]
@@ -80,7 +119,7 @@ def driver_connect(driver,url):
                 raise(e)
 
 def is_file(url:str): 
-    ext=url[-3:]
+    ext=url[-3:].lower()
     if ext == 'pdf': 
         return True
     elif ext =='doc': 
