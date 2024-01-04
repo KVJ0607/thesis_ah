@@ -1216,9 +1216,13 @@ class Document:
         else:
             message=f"published_at should be string or in isoformat,not {published_at}"
             raise(ValueError(message))
-            
+          
         self.__source=source
-        self.__content=content        
+        if type(content)==str or content==None: 
+            self.__content=content         
+        else: 
+            message_="content should be of type str not {}".format(type(content))
+            raise(TypeError(message_)) 
         #db 
         self.__id=id
         self.__company_id=company_id

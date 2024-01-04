@@ -4,6 +4,28 @@ from company.company import *
 from company.orm import Object2Relational
 from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
+from bs4.element import Comment
+import urllib.request
+
+
+def tag_visible(element):
+    if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
+        return False
+    if isinstance(element, Comment):
+        return False
+    return True
+
+
+def text_from_html(body):
+    soup = BeautifulSoup(body, 'html.parser')
+    texts = soup.findAll(text=True)
+    visible_texts = filter(tag_visible, texts)  
+    return u" ".join(t.strip() for t in visible_texts)
+
+
+
+
 def is_iso_date(string): 
     if string ==None or type(string)!=str: 
         return False
@@ -50,8 +72,12 @@ def extract_iso_date(string):
             date_str_ele=match4.group()
             date_str=date_str_ele[0:5]+date_str_ele[5:8]+'0'+date_str_ele[8:9]
         else:
-            print(f'This string does not contain date in iso format {string}')
-            raise(ValueError('The string does not contain date in iso format'))
+            if string is None:
+                print('The input string is None')
+                raise(ValueError('The input string is None'))
+            else:
+                print(f'This string does not contain date in iso format {string}')
+                raise(ValueError('The string does not contain date in iso format'))
     return date_str
 
 def is_internal_link(base_url:str, link:str)->bool:

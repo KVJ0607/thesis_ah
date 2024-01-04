@@ -1,8 +1,10 @@
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
-from article.press_release import * 
-from article.press_release_2 import * 
-from article.press_release_3 import * 
+#from article.press_release import * 
+#from article.press_release_2 import * 
+#from article.press_release_3 import * 
+from article.press_release_4 import * 
+#from article.temp_pr import *
 from utils.constant import COMPANIES_DB
 
 def documents_commit(docs:list[Document],cp_id:int):
@@ -342,7 +344,125 @@ def documents_commit(docs:list[Document],cp_id:int):
 #     print(my_doc_.title,' ',my_doc_.published_at)
 # documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_50().crawling()
+# temp_doc,cp_id=Cp_50().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_51().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_52().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_53().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_54().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_55().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_56().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_57().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_58().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_59().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+
+# temp_doc,cp_id=Cp_60().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+
+# temp_doc,cp_id=Cp_61().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_62().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+#Skipped 
+# temp_doc,cp_id=Cp_63().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_64().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_65().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)x
+
+# temp_doc,cp_id=Cp_66().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_67().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+temp_doc,cp_id=Cp_68().crawling()
 for my_doc_ in temp_doc:
     print(my_doc_.url)
     print(my_doc_.title,' ',my_doc_.published_at)

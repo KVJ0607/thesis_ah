@@ -41,8 +41,6 @@ def _extract_news_pdf_old (document_url:str,file_name:str=_FILENAME):
     return txt
 
 def _extract_news_pdf (document_url:str,file_name:str=_FILENAME)->str:
-    # if document_url=='https://www1.hkexnews.hk/listedco/listconews/sehk/2018/1011/ltn201810111441.pdf': 
-    #     return ''
     
     try:
         with requests.get(document_url, stream=True, timeout=100) as response:
@@ -56,7 +54,6 @@ def _extract_news_pdf (document_url:str,file_name:str=_FILENAME)->str:
         print(f"Request failed: {e}")
         print(document_url)
         txt=''
-        # Or, raise the exception if you prefer
     finally:
         if os.path.exists(file_name):
             os.remove(file_name)

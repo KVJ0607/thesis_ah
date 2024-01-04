@@ -136,13 +136,14 @@ class Cp_30(PressRelease):
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=total_txt+target_ele
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             print(f'error in retrieve_content, content is empty, {url}')
             driver2.close()
             return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
         driver2.close()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
-        #return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
+        
 
     def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
         wait = WebDriverWait(driver,40)
@@ -361,6 +362,7 @@ class Cp_32(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
@@ -565,6 +567,7 @@ class Cp_33(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
@@ -773,7 +776,8 @@ class Cp_33(PressRelease):
 #                 print(f'error in retrieve_content: {driver2.current_url}')
 #                 driver2.close()
 #                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-#         if target_ele==0 or target_ele==None:
+#         target_ele=target_ele+total_txt
+        #if target_ele==0 or target_ele==None:
 #             driver2.close()
 #             print(f'error in retrieve_content, content is empty, {url}')
 #             from_tuple_retri("",url)
@@ -976,6 +980,7 @@ class Cp_35(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
@@ -1177,6 +1182,7 @@ class Cp_36(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
@@ -1386,7 +1392,8 @@ class Cp_37(PressRelease):
         #         print(f'error in retrieve_content: {driver2.current_url}')
         #         driver2.close()
         #         return from_tuple_retri(None,url,date_in_iso=date_ele)
-        # if target_ele==0 or target_ele==None:
+        # target_ele=target_ele+total_txt
+        #if target_ele==0 or target_ele==None:
         #     driver2.close()
         #     print(f'error in retrieve_content, content is empty, {url}')
         #     from_tuple_retri("",url)
@@ -1595,6 +1602,7 @@ class Cp_38(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
@@ -1800,6 +1808,7 @@ class Cp_39(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
@@ -2000,6 +2009,7 @@ class Cp_40(PressRelease):
                 print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.close()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
             driver2.close()
             print(f'error in retrieve_content, content is empty, {url}')
