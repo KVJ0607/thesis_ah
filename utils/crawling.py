@@ -88,6 +88,8 @@ def is_internal_link(base_url:str, link:str)->bool:
     :param link: The link to be checked.
     :return: True if the link is internal, False otherwise.
     """
+    if  type(link) != str: 
+        return False
     if isinstance(link, bytes):
         link = link.decode('utf-8')
         
@@ -145,6 +147,8 @@ def driver_connect(driver,url):
                 raise(e)
 
 def is_file(url:str): 
+    if type(url) !=str: 
+        return False
     ext=url[-3:].lower()
     if ext == 'pdf': 
         return True

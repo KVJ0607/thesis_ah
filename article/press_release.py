@@ -25,6 +25,7 @@ from article.mining import _extracting_an_document
 
 ERROR_COUNT = 20
 CONVERTION_RATE=0.5 #~70% hit rate
+FLAT_MAX_PAGE=100
 class Cp_1(PressRelease):
     def __init__(self):
         base_url = "https://www.ftol.com.cn/"
@@ -53,7 +54,7 @@ class Cp_1(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,138)
+        return min(FLAT_MAX_PAGE,138)
     
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         button = WebDriverWait(driver,30).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#next_page")))
@@ -272,7 +273,7 @@ class Cp_2(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,1)
+        return min(FLAT_MAX_PAGE,1)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         pass
@@ -486,7 +487,7 @@ class Cp_3(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,9)
+        return min(FLAT_MAX_PAGE,9)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -705,7 +706,7 @@ class Cp_4(PressRelease):
     
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,6)
+        return min(FLAT_MAX_PAGE,6)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -985,7 +986,7 @@ class Cp_6(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,112)
+        return min(FLAT_MAX_PAGE,112)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -1204,7 +1205,7 @@ class Cp_7(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,11)
+        return min(FLAT_MAX_PAGE,11)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -1424,7 +1425,7 @@ class Cp_8(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,5)
+        return min(FLAT_MAX_PAGE,5)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -1642,7 +1643,7 @@ class Cp_9(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,23)
+        return min(FLAT_MAX_PAGE,23)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -1861,7 +1862,7 @@ class Cp_10(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,12)
+        return min(FLAT_MAX_PAGE,12)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -2078,7 +2079,7 @@ class Cp_11(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,13)
+        return min(FLAT_MAX_PAGE,13)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -2296,7 +2297,7 @@ class Cp_12(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,234)
+        return min(FLAT_MAX_PAGE,234)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -2517,7 +2518,7 @@ class Cp_13(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,26)
+        return min(FLAT_MAX_PAGE,26)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -2735,7 +2736,7 @@ class Cp_14(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,83)
+        return min(FLAT_MAX_PAGE,83)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -2957,7 +2958,7 @@ class Cp_15(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,38)
+        return min(FLAT_MAX_PAGE,38)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -3177,7 +3178,7 @@ class Cp_16(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,5)
+        return min(FLAT_MAX_PAGE,5)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -3400,7 +3401,7 @@ class Cp_17(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,100)
+        return min(FLAT_MAX_PAGE,100)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -3620,7 +3621,7 @@ class Cp_18(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,57)
+        return min(FLAT_MAX_PAGE,57)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -3815,7 +3816,6 @@ class Cp_18(PressRelease):
         except MaxErrorReached as e:
             raise(MaxErrorReached(all_err_url,self.company_id))
 
-
 class Cp_19(PressRelease):
     def __init__(self):
         base_url="https://www.suntien.com/"
@@ -3844,7 +3844,7 @@ class Cp_19(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,54)
+        return min(FLAT_MAX_PAGE,54)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -4071,7 +4071,7 @@ class Cp_20(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,25)
+        return min(FLAT_MAX_PAGE,25)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -4291,7 +4291,7 @@ class Cp_21(PressRelease):
     
         
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,88)
+        return min(FLAT_MAX_PAGE,88)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -4507,7 +4507,7 @@ class Cp_22(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,10)
+        return min(FLAT_MAX_PAGE,10)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -4724,7 +4724,7 @@ class Cp_23(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,12)
+        return min(FLAT_MAX_PAGE,12)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -4941,7 +4941,7 @@ class Cp_24(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,4)
+        return min(FLAT_MAX_PAGE,4)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -5162,7 +5162,7 @@ class Cp_25(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,136)
+        return min(FLAT_MAX_PAGE,136)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -5380,7 +5380,7 @@ class Cp_26(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,49)
+        return min(FLAT_MAX_PAGE,49)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -5596,7 +5596,7 @@ class Cp_27(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,9)
+        return min(FLAT_MAX_PAGE,9)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -5812,7 +5812,7 @@ class Cp_28(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,87)
+        return min(FLAT_MAX_PAGE,87)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
@@ -6029,7 +6029,7 @@ class Cp_29(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(100,26)
+        return min(FLAT_MAX_PAGE,26)
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
