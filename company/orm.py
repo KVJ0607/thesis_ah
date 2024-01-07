@@ -523,7 +523,39 @@ class Object2Relational:
         c.close()
         con.close()
         return result_in_val
-        
+    
+    def update_single_col(self,table_name,col_name,col_value,req_col,req_val): 
+        con=sqlite3.connect(self.db_path)
+        c=con.cursor()
+        sql_update_query="""
+            UPDATE {}
+            SET {} = ?
+            WHERE {} = ?;
+        """.format(table_name,col_name,req_col)
+        try:
+            # Execute the SQL command with parameters
+            c.execute(sql_update_query, (col_value, req_val))
+
+            # Commit the changes to the database
+            con.commit()
+
+            # Check if any rows were updated
+            if c.rowcount > 0:
+                print(f"Updated {c.rowcount} row(s) in the table.")
+            else:
+                print("No rows were updated.")
+
+        except sqlite3.Error as error:
+            # Rollback in case of an error
+            con.rollback()
+            print("Failed to update rows in sqlite table", error)
+
+        finally:
+            # Close the cursor and connection to the database
+            c.close()
+            con.close()
+
+    
     def join_table_and_group_concat(self,foreign_class,foreign_col):
         """retreive a group concated values of a column in a foreign table; the main and foreign table have a 1-m relationship.
         

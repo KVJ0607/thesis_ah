@@ -1,9 +1,15 @@
 import re
 import time
 import math
+import requests
 
-# from selenium.webdriver.chrome.service import Service
-# from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+
+import ssl
+import certifi
+import urllib.request
+
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.chrome.options import Options
@@ -12,34 +18,38 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
-#from selenium.common.exceptions import UnexpectedAlertPresentException, StaleElementReferenceException, ElementClickInterceptedException, NoSuchElementException, TimeoutException, WebDriverException, InvalidArgumentException
+from selenium.common.exceptions import UnexpectedAlertPresentException, StaleElementReferenceException, ElementClickInterceptedException, NoSuchElementException, TimeoutException, WebDriverException, InvalidArgumentException
 #from selenium.webdriver.common.keys import Keys
 from joblib import Parallel, delayed
 #from bs4 import BeautifulSoup
 #from datetime import datetime
+
+from selenium_proxy_authentication.extension import proxies,USERNAME,PASSWORD,ENDPOINT,PORT
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+
 from utils.exception import MaxErrorReached
-from utils.crawling import PressRelease, driver_connect, is_file,from_tuple_retri,from_tuple_read,extract_normal_link,is_internal_link,extract_iso_date
+from utils.crawling import PressRelease,is_file,from_tuple_retri,from_tuple_read,extract_normal_link,is_internal_link,extract_iso_date,is_iso_date,text_from_html,reverse_date_in_str,make_full_url
 from company.company import *
-from article.mining import _extracting_an_document
+from article.mining import _extracting_an_document        
 
-
-ERROR_COUNT = 20
-CONVERTION_RATE=0.5 #~70% hit rate
+ERROR_COUNT = 15
+CONVERTION_RATE=0.4 #~70% hit rate
 FLAT_MAX_PAGE=100
+
 class Cp_1(PressRelease):
     def __init__(self):
-        base_url = "https://www.ftol.com.cn/"
-        press_release_url = "https://www.ftol.com.cn/main/yfzx/cjxw/cjyw/index.shtml"
-        h_code = "03678.hk"
-        super().__init__(base_url,press_release_url,h_code)
+        base_url="https://www.ftol.com.cn"
+        press_release_url="https://www.ftol.com.cn/main/zjhy/mtjj/index.shtml"
+        h_code="03678.HK".lower()
         self.__error_count=0
         self.__success_count=0
-        #robot.txt=None
+        super().__init__(base_url,press_release_url,h_code)
+        self.__robots_txt=None
 
     @property
     def error_count(self):
         return self.__error_count
-    
     @property
     def success_count(self):
         return self.__success_count
@@ -47,106 +57,110 @@ class Cp_1(PressRelease):
     def add_error_count(self,add_error_count_:int=1)->None:
         self.__error_count=self.__error_count+add_error_count_
 
-    def add_success_count(self,add_count:int=1)->None: 
+    def add_success_count(self,add_count:int=1)->None:
         self.__success_count=self.__success_count+add_count
-
     def get_current_page(self,driver:WebDriver)->int:
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(FLAT_MAX_PAGE,138)
-    
+        return 9
+
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        button = WebDriverWait(driver,30).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#next_page")))
-        driver.execute_script("arguments[0].click();", button)
+        wait = WebDriverWait(driver,15)
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_xpath="//a[@id='next_page']"
+        #driver_action=ActionChains(driver)
+        try:
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            #driver_action.scroll_to_element(page_div).perform()
+            driver.execute_script('arguments[0].click();', page_div)
+        except Exception:
+            print('problem getting next page, now reload the page')
+            driver.get(driver.current_url)
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
-    def retrieve_content(url:str)->dict[str,str|None]:
+    def retrieve_content(url:str,is_proxy)->dict[str,str|None]:
         date_ele=None
         total_txt=""
-        #check url is not empty
         if url is None:
+            print("url is None")
             return from_tuple_retri(None,url,date_in_iso=date_ele)
-        #extract txt if it is a document
         isfile=is_file(url)
         if isfile:
             try:
                 txt=_extracting_an_document(Document.from_url(url))
-                return from_tuple_retri(txt,"")
+                print(f'downloaded the file: {url}')
+                return from_tuple_retri(txt,"",date_in_iso=date_ele)
             except Exception as e:
-                print("error in retrieve_content")
+                print(f'error in downloading the file {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        #driver connect to url
         url_list:list[str]=[]
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
-        driver2=webdriver.Chrome(options=chrome_options)        
-        driver2.set_page_load_timeout(45) 
-        max_attempts=5
-        attempts=0 
-        while attempts<max_attempts: 
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+            driver2=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+        else:
+            driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        try:
+            driver2.get(url)
+        except WebDriverException as e:
+            print(f'error: receive_content function cannot connect to {url}')
+            context=ssl.create_default_context(cafile=certifi.where())
             try:
-                driver2.get(url)
-                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
-                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
-                #driver2.find_element(By.ID,'save_button').click() 
-                #driver2.get(url)
-                break
-            except WebDriverException as e:
-                attempts += 1
-                if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
-                    print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-                    time.sleep(5)  # Wait for 5 seconds before retrying
-                else: 
-                    print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url,date_in_iso=date_ele)
-                
-        try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute("href")                                
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(new_url)                    
-            url_list=extract_normal_link(url_list)[:5]
-            
-            
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            print(f"Warning in extracting content from other url elements from one url in retrieve_content function:{url}")
-        try:
-            target_ele=driver2.find_element(By.CSS_SELECTOR,"body div.Research_center_box div.early_box").text
-        except Exception:
-            try: 
-                target_ele=driver2.find_element(By.XPATH,'//body').text
+                html=urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)
+                #txt_length=len(target_ele)
+                #start_index=int(txt_length/2)
+                #print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,'',date_in_iso=date_ele)
             except Exception:
-                print(f'error in retrieve_content: {url}')
+                return from_tuple_retri(None,url,date_in_iso='')
+        #try:
+            #url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            #for url_ele in url_eles:
+                #new_url=url_ele.get_attribute('href')
+                #isfile_2=is_file(new_url)
+                #if isfile_2:
+                    #url_list.append(url_ele.get_attribute('href'))
+            #url_list=extract_normal_link(url_list)
+            #for url_ in url_list:
+                #total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+                #print("extracting document {} inside a page {}".format(url_,url))
+        #except Exception as e:
+            #a=True
+        try:
+            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//body/div[5]/div[1]/div[2]"))).text
+            #date_ele=extract_iso_date(WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,""))).text.replace('年','-').replace('月','-').replace('日','').replace('/','-').replace('.','-'),strip()
+        except Exception:
+            try:
+                target_ele=driver2.find_element(By.TAG_NAME,'body').text
+            except:
+                print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        target_ele=total_txt+target_ele
         target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
-            print(f"error in retrieve_content, content is empty, {url}")
             driver2.quit()
-            return from_tuple_retri("",url)            
+            print(f'error in retrieve_content, content is empty, {url}')
+            from_tuple_retri("",url)
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,40)
+        wait = WebDriverWait(driver,15)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.nr > div.Re_three > ul")))
-            rows=target_ele.find_elements(By.TAG_NAME,"li")
+            rows_xpath="//div[@class='art_right']//ul/li"
+            rows=wait.until(EC.presence_of_all_elements_located((By.XPATH,rows_xpath)))
         except Exception as e:
-            print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
+            print("problem finding the list of news in a page")
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -154,97 +168,145 @@ class Cp_1(PressRelease):
         document_list:list[Document]=[]
         urls:list[str]=[]
         err_urls:list[str]=[]
-        for row_ in rows:
+        for row_index in range(len(rows)):
+            time.sleep(0.1)
+            url=None
+            title=None
+            date_in_iso=None
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
-                url=url_ele.get_attribute("href")
-                title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.TAG_NAME, 'span').text)
-                if is_internal_link(base_url=self.base_url,link=url):
-                    urls.append(url)
-                else:
-                    continue
-                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
+                #xpath of row_elements 
+                row_xpath=rows_xpath+f"[{row_index+1}]"
+                url_ele_xpath=row_xpath+"/a"
+                #title_ele_xpath=row_xpath+"/"
+                date_xpath=row_xpath+"/span"
+
+                #scroll to row 
+                #row_ele=wait.until(EC.presence_of_element_located((By.XPATH,row_xpath)))
+                #driver_action=ActionChains(driver)
+                #driver_action.scroll_to_element(row_ele).perform()
+
+                #other row elements
+                url=wait.until(EC.presence_of_element_located((By.XPATH,url_ele_xpath))).get_attribute('href')
+                title=wait.until(EC.visibility_of_element_located((By.XPATH,url_ele_xpath))).text
+                date_in_string=wait.until(EC.visibility_of_element_located((By.XPATH,date_xpath))).text
+                date_in_iso=extract_iso_date(date_in_string.replace(' ','').replace('"','').replace('年','-').replace('月','-').replace('日','').replace('.','-').replace('/','-').strip())
+                print(url)
+                print(title)
+                print(date_in_iso)
             except Exception as e:
-                print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if driver.current_url not in err_urls: 
+                print(f'problem with crawling elements of row {row_index} in this page: {driver.current_url}')
+                message=''
+                if url is None and title is not None:
+                    message=message+'url is problematic in this row in page: {}'.format(driver.current_url)
+                elif url is not None and title is None :
+                    message=message+'title is problematic in this row in page: {}'.format(driver.current_url)
+                else:
+                    message=message+'both url and title is problematic in this row in page: {}'.format(driver.current_url)
+                if driver.current_url not in err_urls:
                     err_urls.append(driver.current_url)
-                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                     self.add_error_count()
                     continue
                 else:
-                    raise(MaxErrorReached())
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_1.retrieve_content)(url) for url in urls)
+                    raise(MaxErrorReached(message))
+            if (type(url)==str and url!="" and url!=None) or is_file(url):
+                urls.append(url)
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
+            else:
+                print(f'This {url} is not an internal link')
+                continue
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_1.retrieve_content)(url,is_proxy) for url in urls)
         refined_document_list:list[Document]=[]
-        
         for i in range(len(content_list)):
             err_url=content_list[i]["err_url"]
-            if err_url!="" and err_url!=None:
-                self.add_error_count()
-                err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
-                    raise(Exception("reach maximum error count"))
-            else: 
-                document_list[i].set_content(content_list[i]["content"])
+            doc_iso_date=document_list[i].published_at
+            crawling_iso_date=content_list[i]["date_in_iso"]
+            is_url_valid=(err_url=="" or err_url==None)
+            is_doc_date_valid=is_iso_date(doc_iso_date)
+            is_crawling_iso_date_valid=is_iso_date(crawling_iso_date)
+            if is_url_valid and is_doc_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
                 refined_document_list.append(document_list[i])
                 self.add_success_count()
+            elif is_url_valid and is_crawling_iso_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            else:
+                self.add_error_count()
+                err_urls.append(err_url)
+                if not is_doc_date_valid and not is_crawling_iso_date_valid:
+                    print(f'published_at is problematic, doc:{doc_iso_date} and crawl:{crawling_iso_date}')
+                else:
+                    print('the crawling process of extracting text has error')
+                    refined_document_list.append(document_list[i])
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
+                    raise(MaxErrorReached())
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
-        
-
 
     def crawling(self,is_proxy=False)->tuple[list[Document],str]:
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument('--headless')
         try:
-            #ajkhmmldknmfjnmeedkbkkojgobmljda
             all_err_url:list[str]=[]
-            driver=webdriver.Chrome(options=chrome_options)
-
-         
+            if is_proxy:
+                driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+            else:
+                driver=webdriver.Chrome(options=chrome_options)
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
-                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
-                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
-                    #driver.find_element(By.ID,'save_button').click()    
-                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
-                    if "net::ERR_CONNECTION_RESET" in str(e):
+                    if 'net::ERR_CONNECTION_RESET' in str(e):
                         attempts+=1
-                        print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-                        time.sleep(5)  # Wait for 5 seconds before retrying
+                        print(f'Attempt {attempts} of {max_attempts} failed with error: {e}')
+                        time.sleep(5)
                     else:
                         print('Problem with requesting the main page')
+                        driver.exit()
                         raise(e)
             time.sleep(0.5)
+            all_doc:list[Document]=[]
             total_page=self.get_total_page(driver)
             current_page=self.get_current_page(driver)
-            all_doc:list[Document]=[]
+            start_page=1
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver,is_proxy)
-                print(f'finish crawling page{current_page} of {self.company_id}')
-                doc_list=read_page_result["doc_list"]
-                all_doc=all_doc+doc_list        
-                err_url_list=read_page_result["err_url_list"] 
-                all_err_url=all_err_url+err_url_list               
+                if current_page>=start_page:
+                    read_page_result=self.read_page(driver,is_proxy)
+                    #print(f'finish crawling page{current_page} of {self.company_id}')
+                    doc_list=read_page_result["doc_list"]
+                    all_doc=all_doc+doc_list
+                    err_url_list=read_page_result["err_url_list"]
+                    all_err_url=all_err_url+err_url_list
                 if(current_page<total_page):
                     self.next_page(current_page,driver)
-                time.sleep(0.5)
                 current_page=current_page+1
             driver.quit()
             return all_doc,self.company_id
-        except MaxErrorReached as e: 
+        except MaxErrorReached as e:
+            message_=""
+            for err_url in all_err_url:
+                message_=message_+err_url+"\n"
+            message_=message_+"For company id: {}".format(self.company_id)
+            message_=message_+"The press release link {}".format(self.press_release_url)
             raise(MaxErrorReached(all_err_url,self.company_id))
-            
+      
 class Cp_2(PressRelease):
     def __init__(self):
         base_url='http://www.zjshibao.com/tc/index.html'
@@ -905,73 +967,17 @@ class Cp_4(PressRelease):
 
 class Cp_5(PressRelease):
     def __init__(self):
-        base_url = 'https://www.shandongxinhuapharma.com/'
-        press_release_url = 'https://www.shandongxinhuapharma.com/'
-        h_code = '00719.HK'.lower()
-        super().__init__(base_url, press_release_url, h_code)
+        base_url="http://www.xhzy.com"
+        press_release_url="http://www.xhzy.com/xwzx.php?cid=9"
+        h_code="00719.HK".lower()
         self.__error_count=0
         self.__success_count=0
-        self.__robots_txt = None
-
-    @property
-    def error_count(self):
-        return self.__error_count
-    
-    @property
-    def success_count(self):
-        return self.__success_count
-
-    def add_error_count(self,add_error_count_:int=1)->None:
-        self.__error_count=self.__error_count+add_error_count_
-
-    def add_success_count(self,add_count:int=1)->None: 
-        self.__success_count=self.__success_count+add_count
-
-    def get_current_page(self,driver:WebDriver)->int:
-        return 1
-
-    def get_total_page(self,driver:WebDriver)->int:
-        pass 
-
-    def next_page(self,cur_page:int,driver:WebDriver)->None:
-
-        pass
-
-    @staticmethod
-    def retrieve_content(url:str)->dict[str,str|None]:
-        date_ele=None
-        total_txt=""
-        pass         
-
-
-    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
-        pass 
-
-
-    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
-        chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
-        return [],self.company_id
-
-class Cp_6(PressRelease):
-    def __init__(self):
-        base_url="https://www.panda.cn/"
-        press_release_url="https://www.panda.cn/qyxw/list_31.aspx"
-        h_code="00553.HK".lower()
         super().__init__(base_url,press_release_url,h_code)
-        self.__error_count=0
-        self.__success_count=0
         self.__robots_txt=None
 
     @property
     def error_count(self):
         return self.__error_count
-    
     @property
     def success_count(self):
         return self.__success_count
@@ -979,109 +985,110 @@ class Cp_6(PressRelease):
     def add_error_count(self,add_error_count_:int=1)->None:
         self.__error_count=self.__error_count+add_error_count_
 
-    def add_success_count(self,add_count:int=1)->None: 
+    def add_success_count(self,add_count:int=1)->None:
         self.__success_count=self.__success_count+add_count
-
     def get_current_page(self,driver:WebDriver)->int:
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(FLAT_MAX_PAGE,112)
+        return 64
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,30)
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//div[@class='Page']//a[contains(text(),' > ')]")))
-        driver.execute_script('arguments[0].click();', page_div)
+        wait = WebDriverWait(driver,15)
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_xpath="(//a[@title='下一页'][normalize-space()='>'])[2]"
+        #driver_action=ActionChains(driver)
+        try:
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            #driver_action.scroll_to_element(page_div).perform()
+            driver.execute_script('arguments[0].click();', page_div)
+        except Exception:
+            print('problem getting next page, now reload the page')
+            driver.get(driver.current_url)
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
-    def retrieve_content(url:str)->dict[str,str|None]:
+    def retrieve_content(url:str,is_proxy)->dict[str,str|None]:
         date_ele=None
         total_txt=""
-        
         if url is None:
+            print("url is None")
             return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
         isfile=is_file(url)
         if isfile:
             try:
                 txt=_extracting_an_document(Document.from_url(url))
-                return from_tuple_retri(txt,"")
+                print(f'downloaded the file: {url}')
+                return from_tuple_retri(txt,"",date_in_iso=date_ele)
             except Exception as e:
-                print(f'error in retrieve_content: {url}')
+                print(f'error in downloading the file {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
         url_list:list[str]=[]
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
-        driver2=webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(45) 
-        max_attempts=5
-        attempts=0 
-        while attempts<max_attempts: 
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+            driver2=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+        else:
+            driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        try:
+            driver2.get(url)
+        except WebDriverException as e:
+            print(f'error: receive_content function cannot connect to {url}')
+            context=ssl.create_default_context(cafile=certifi.where())
             try:
-                driver2.get(url)
-                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
-                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
-                #driver2.find_element(By.ID,'save_button').click() 
-                #driver2.get(url)
-                break
-            except WebDriverException as e:
-                attempts += 1
-                if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
-                    print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-                    time.sleep(5)  # Wait for 5 seconds before retrying
-                else: 
-                    print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
+                html=urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)
+                #txt_length=len(target_ele)
+                #start_index=int(txt_length/2)
+                #print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,'',date_in_iso=date_ele)
+            except Exception:
+                return from_tuple_retri(None,url,date_in_iso='')
+        #try:
+            #url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            #for url_ele in url_eles:
+                #new_url=url_ele.get_attribute('href')
+                #isfile_2=is_file(new_url)
+                #if isfile_2:
+                    #url_list.append(url_ele.get_attribute('href'))
+            #url_list=extract_normal_link(url_list)
+            #for url_ in url_list:
+                #total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+                #print("extracting document {} inside a page {}".format(url_,url))
+        #except Exception as e:
+            #a=True
         try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute('href')
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(url_ele.get_attribute('href'))
-            
-            url_list=extract_normal_link(url_list)[:5]
-            
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
-            b=True
-        try:
-            target_ele=driver2.find_element(By.XPATH,"//div[@class='SinglePage']").text
-            
+            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//body/div[5]/div[1]"))).text
+            #date_ele=extract_iso_date(WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,""))).text.replace('年','-').replace('月','-').replace('日','').replace('/','-').replace('.','-'),strip()
         except Exception:
-            print(f'error in retrieve_content: {url}')
-            driver2.quit()
-            return from_tuple_retri(None,url,date_in_iso=date_ele)
-        target_ele=total_txt+target_ele
+            try:
+                target_ele=driver2.find_element(By.TAG_NAME,'body').text
+            except:
+                print(f'error in retrieve_content: {driver2.current_url}')
+                driver2.quit()
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
         target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
-            try: 
-                target_ele=driver2.find_element(By.XPATH,'//body').text
-            except Exception:
-                print(f'error in retrieve_content: {url}')
-                driver2.quit()
-                return from_tuple_retri(None,url,date_in_iso=date_ele) 
+            driver2.quit()
+            print(f'error in retrieve_content, content is empty, {url}')
+            from_tuple_retri("",url)
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,40)
+        wait = WebDriverWait(driver,15)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='NewsList']//ul")))
-            rows=target_ele.find_elements(By.TAG_NAME,'li')
+            rows_xpath="/html/body/div[5]/div/div[3]/a"
+            rows=wait.until(EC.presence_of_all_elements_located((By.XPATH,rows_xpath)))
         except Exception as e:
-            print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
+            print("problem finding the list of news in a page")
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1089,65 +1096,109 @@ class Cp_6(PressRelease):
         document_list:list[Document]=[]
         urls:list[str]=[]
         err_urls:list[str]=[]
-        for row_ in rows:
+        for row_index in range(len(rows)):
+            time.sleep(0.1)
+            url=None
+            title=None
+            date_in_iso=None
             try:
-                url_ele=row_.find_element(By.XPATH,".//div[@class='LiRight']/h4/a")
-                url=url_ele.get_attribute('href')
-                title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//div[@class='LiRight']/h4/span").text)
+                #xpath of row_elements 
+                row_xpath=rows_xpath+f"[{row_index+1}]"
+                url_ele_xpath=row_xpath
+                title_ele_xpath=row_xpath+"/div/div/h5"
+                date_xpath=row_xpath+"/div/div/span"
+
+                #scroll to row 
+                #row_ele=wait.until(EC.presence_of_element_located((By.XPATH,row_xpath)))
+                #driver_action=ActionChains(driver)
+                #driver_action.scroll_to_element(row_ele).perform()
+
+                #other row elements
+                url=wait.until(EC.presence_of_element_located((By.XPATH,url_ele_xpath))).get_attribute('href')
+                title=wait.until(EC.visibility_of_element_located((By.XPATH,title_ele_xpath))).text
+                date_in_string=wait.until(EC.visibility_of_element_located((By.XPATH,date_xpath))).text
+                date_in_iso=extract_iso_date(date_in_string.replace(' ','').replace('"','').replace('年','-').replace('月','-').replace('日','').replace('.','-').replace('/','-').strip())
+                print(url)
+                print(title)
+                print(date_in_iso)
             except Exception as e:
-                print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if driver.current_url not in err_urls: 
+                print(f'problem with crawling elements of row {row_index} in this page: {driver.current_url}')
+                message=''
+                if url is None and title is not None:
+                    message=message+'url is problematic in this row in page: {}'.format(driver.current_url)
+                elif url is not None and title is None :
+                    message=message+'title is problematic in this row in page: {}'.format(driver.current_url)
+                else:
+                    message=message+'both url and title is problematic in this row in page: {}'.format(driver.current_url)
+                if driver.current_url not in err_urls:
                     err_urls.append(driver.current_url)
-                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                     self.add_error_count()
                     continue
                 else:
-                    raise(MaxErrorReached())
-            if is_internal_link(base_url=self.base_url,link=url):
-                    urls.append(url)
+                    raise(MaxErrorReached(message))
+            if (type(url)==str and url!="" and url!=None) or is_file(url):
+                urls.append(url)
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             else:
+                print(f'This {url} is not an internal link')
                 continue
-            document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_6.retrieve_content)(url) for url in urls)
-        
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_5.retrieve_content)(url,is_proxy) for url in urls)
         refined_document_list:list[Document]=[]
         for i in range(len(content_list)):
             err_url=content_list[i]["err_url"]
-            if err_url!="" and err_url!=None:
-                self.add_error_count()
-                err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
-                    raise(MaxErrorReached())
-            else: 
-                document_list[i].set_content(content_list[i]["content"])
+            doc_iso_date=document_list[i].published_at
+            crawling_iso_date=content_list[i]["date_in_iso"]
+            is_url_valid=(err_url=="" or err_url==None)
+            is_doc_date_valid=is_iso_date(doc_iso_date)
+            is_crawling_iso_date_valid=is_iso_date(crawling_iso_date)
+            if is_url_valid and is_doc_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
                 refined_document_list.append(document_list[i])
                 self.add_success_count()
+            elif is_url_valid and is_crawling_iso_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            else:
+                self.add_error_count()
+                err_urls.append(err_url)
+                if not is_doc_date_valid and not is_crawling_iso_date_valid:
+                    print(f'published_at is problematic, doc:{doc_iso_date} and crawl:{crawling_iso_date}')
+                else:
+                    print('the crawling process of extracting text has error')
+                    refined_document_list.append(document_list[i])
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
+                    raise(MaxErrorReached())
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
-
 
     def crawling(self,is_proxy=False)->tuple[list[Document],str]:
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
-            driver=webdriver.Chrome(options=chrome_options)
-
+            if is_proxy:
+                driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+            else:
+                driver=webdriver.Chrome(options=chrome_options)
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
-                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
-                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
-                    #driver.find_element(By.ID,'save_button').click()    
-                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1156,27 +1207,305 @@ class Cp_6(PressRelease):
                         time.sleep(5)
                     else:
                         print('Problem with requesting the main page')
+                        driver.exit()
                         raise(e)
             time.sleep(0.5)
+            all_doc:list[Document]=[]
             total_page=self.get_total_page(driver)
             current_page=self.get_current_page(driver)
-            all_doc:list[Document]=[]
+            start_page=1
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver,is_proxy)
-                print(f'finish crawling page{current_page} of {self.company_id}')
-                doc_list=read_page_result["doc_list"]
-                all_doc=all_doc+doc_list
-                err_url_list=read_page_result["err_url_list"]
-                all_err_url=all_err_url+err_url_list
+                if current_page>=start_page:
+                    read_page_result=self.read_page(driver,is_proxy)
+                    #print(f'finish crawling page{current_page} of {self.company_id}')
+                    doc_list=read_page_result["doc_list"]
+                    all_doc=all_doc+doc_list
+                    err_url_list=read_page_result["err_url_list"]
+                    all_err_url=all_err_url+err_url_list
                 if(current_page<total_page):
                     self.next_page(current_page,driver)
-                time.sleep(0.5)
                 current_page=current_page+1
             driver.quit()
             return all_doc,self.company_id
         except MaxErrorReached as e:
+            message_=""
+            for err_url in all_err_url:
+                message_=message_+err_url+"\n"
+            message_=message_+"For company id: {}".format(self.company_id)
+            message_=message_+"The press release link {}".format(self.press_release_url)
             raise(MaxErrorReached(all_err_url,self.company_id))
-        
+
+class Cp_6(PressRelease):
+    def __init__(self):
+        base_url="https://www.panda.cn"
+        press_release_url="https://www.panda.cn/mtjj/list_32.aspx"
+        h_code="00553.HK".lower()
+        self.__error_count=0
+        self.__success_count=0
+        super().__init__(base_url,press_release_url,h_code)
+        self.__robots_txt=None
+
+    @property
+    def error_count(self):
+        return self.__error_count
+    @property
+    def success_count(self):
+        return self.__success_count
+
+    def add_error_count(self,add_error_count_:int=1)->None:
+        self.__error_count=self.__error_count+add_error_count_
+
+    def add_success_count(self,add_count:int=1)->None:
+        self.__success_count=self.__success_count+add_count
+    def get_current_page(self,driver:WebDriver)->int:
+        return 1
+
+    def get_total_page(self,driver:WebDriver)->int:
+        return 4
+
+    def next_page(self,cur_page:int,driver:WebDriver)->None:
+        wait = WebDriverWait(driver,15)
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_xpath="//a[@class='next']"
+        #driver_action=ActionChains(driver)
+        try:
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            #driver_action.scroll_to_element(page_div).perform()
+            driver.execute_script('arguments[0].click();', page_div)
+        except Exception:
+            print('problem getting next page, now reload the page')
+            driver.get(driver.current_url)
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            driver.execute_script('arguments[0].click();', page_div)
+
+    @staticmethod
+    def retrieve_content(url:str,is_proxy)->dict[str,str|None]:
+        date_ele=None
+        total_txt=""
+        if url is None:
+            print("url is None")
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
+        isfile=is_file(url)
+        if isfile:
+            try:
+                txt=_extracting_an_document(Document.from_url(url))
+                print(f'downloaded the file: {url}')
+                return from_tuple_retri(txt,"",date_in_iso=date_ele)
+            except Exception as e:
+                print(f'error in downloading the file {url}')
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
+        url_list:list[str]=[]
+        chrome_options=Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument("--enable-javascript")
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+            driver2=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+        else:
+            driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        try:
+            driver2.get(url)
+        except WebDriverException as e:
+            print(f'error: receive_content function cannot connect to {url}')
+            context=ssl.create_default_context(cafile=certifi.where())
+            try:
+                html=urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)
+                #txt_length=len(target_ele)
+                #start_index=int(txt_length/2)
+                #print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,'',date_in_iso=date_ele)
+            except Exception:
+                return from_tuple_retri(None,url,date_in_iso='')
+        #try:
+            #url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            #for url_ele in url_eles:
+                #new_url=url_ele.get_attribute('href')
+                #isfile_2=is_file(new_url)
+                #if isfile_2:
+                    #url_list.append(url_ele.get_attribute('href'))
+            #url_list=extract_normal_link(url_list)
+            #for url_ in url_list:
+                #total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+                #print("extracting document {} inside a page {}".format(url_,url))
+        #except Exception as e:
+            #a=True
+        try:
+            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"https://www.panda.cn/mtjj/list_32.aspx"))).text
+            #date_ele=extract_iso_date(WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,""))).text.replace('年','-').replace('月','-').replace('日','').replace('/','-').replace('.','-'),strip()
+        except Exception:
+            try:
+                target_ele=driver2.find_element(By.TAG_NAME,'body').text
+            except:
+                print(f'error in retrieve_content: {driver2.current_url}')
+                driver2.quit()
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
+        if target_ele==0 or target_ele==None:
+            driver2.quit()
+            print(f'error in retrieve_content, content is empty, {url}')
+            from_tuple_retri("",url)
+        driver2.quit()
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
+
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,15)
+        try:
+            rows_xpath="//div[@class='NewsList']/ul/li"
+            rows=wait.until(EC.presence_of_all_elements_located((By.XPATH,rows_xpath)))
+        except Exception as e:
+            print("problem finding the list of news in a page")
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
+                self.add_error_count(5)
+                return from_tuple_read([],[driver.current_url])
+            else:
+                raise(MaxErrorReached())
+        document_list:list[Document]=[]
+        urls:list[str]=[]
+        err_urls:list[str]=[]
+        for row_index in range(len(rows)):
+            time.sleep(0.1)
+            url=None
+            title=None
+            date_in_iso=None
+            try:
+                #xpath of row_elements 
+                row_xpath=rows_xpath+f"[{row_index+1}]"
+                url_ele_xpath=row_xpath+"/div[2]/h4/a"
+                title_ele_xpath=row_xpath+"/div[2]/h4/a"
+                date_xpath=row_xpath+"/div[2]/h4/span"
+
+                #scroll to row 
+                #row_ele=wait.until(EC.presence_of_element_located((By.XPATH,row_xpath)))
+                #driver_action=ActionChains(driver)
+                #driver_action.scroll_to_element(row_ele).perform()
+
+                #other row elements
+                url=wait.until(EC.presence_of_element_located((By.XPATH,url_ele_xpath))).get_attribute('href')
+                title=wait.until(EC.visibility_of_element_located((By.XPATH,title_ele_xpath))).text
+                date_in_string=wait.until(EC.visibility_of_element_located((By.XPATH,date_xpath))).text
+                date_in_string="20"+date_in_string
+                date_in_iso=extract_iso_date(date_in_string.replace(' ','').replace('"','').replace('年','-').replace('月','-').replace('日','').replace('.','-').replace('/','-').strip())
+                print(url)
+                print(title)
+                print(date_in_iso)
+            except Exception as e:
+                print(f'problem with crawling elements of row {row_index} in this page: {driver.current_url}')
+                message=''
+                if url is None and title is not None:
+                    message=message+'url is problematic in this row in page: {}'.format(driver.current_url)
+                elif url is not None and title is None :
+                    message=message+'title is problematic in this row in page: {}'.format(driver.current_url)
+                else:
+                    message=message+'both url and title is problematic in this row in page: {}'.format(driver.current_url)
+                if driver.current_url not in err_urls:
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
+                    self.add_error_count()
+                    continue
+                else:
+                    raise(MaxErrorReached(message))
+            if (type(url)==str and url!="" and url!=None) or is_file(url):
+                urls.append(url)
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
+            else:
+                print(f'This {url} is not an internal link')
+                continue
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_6.retrieve_content)(url,is_proxy) for url in urls)
+        refined_document_list:list[Document]=[]
+        for i in range(len(content_list)):
+            err_url=content_list[i]["err_url"]
+            doc_iso_date=document_list[i].published_at
+            crawling_iso_date=content_list[i]["date_in_iso"]
+            is_url_valid=(err_url=="" or err_url==None)
+            is_doc_date_valid=is_iso_date(doc_iso_date)
+            is_crawling_iso_date_valid=is_iso_date(crawling_iso_date)
+            if is_url_valid and is_doc_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            elif is_url_valid and is_crawling_iso_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            else:
+                self.add_error_count()
+                err_urls.append(err_url)
+                if not is_doc_date_valid and not is_crawling_iso_date_valid:
+                    print(f'published_at is problematic, doc:{doc_iso_date} and crawl:{crawling_iso_date}')
+                else:
+                    print('the crawling process of extracting text has error')
+                    refined_document_list.append(document_list[i])
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
+                    raise(MaxErrorReached())
+        return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
+
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+        chrome_options.add_argument("--enable-javascript")
+        #chrome_options.add_argument('--headless')
+        try:
+            all_err_url:list[str]=[]
+            if is_proxy:
+                driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+            else:
+                driver=webdriver.Chrome(options=chrome_options)
+            max_attempts=5
+            attempts=0
+            while attempts<max_attempts:
+                try:
+                    driver.get(self.press_release_url)
+                    break
+                except WebDriverException as e:
+                    if 'net::ERR_CONNECTION_RESET' in str(e):
+                        attempts+=1
+                        print(f'Attempt {attempts} of {max_attempts} failed with error: {e}')
+                        time.sleep(5)
+                    else:
+                        print('Problem with requesting the main page')
+                        driver.exit()
+                        raise(e)
+            time.sleep(0.5)
+            all_doc:list[Document]=[]
+            total_page=self.get_total_page(driver)
+            current_page=self.get_current_page(driver)
+            start_page=1
+            while(current_page<=total_page):
+                if current_page>=start_page:
+                    read_page_result=self.read_page(driver,is_proxy)
+                    #print(f'finish crawling page{current_page} of {self.company_id}')
+                    doc_list=read_page_result["doc_list"]
+                    all_doc=all_doc+doc_list
+                    err_url_list=read_page_result["err_url_list"]
+                    all_err_url=all_err_url+err_url_list
+                if(current_page<total_page):
+                    self.next_page(current_page,driver)
+                current_page=current_page+1
+            driver.quit()
+            return all_doc,self.company_id
+        except MaxErrorReached as e:
+            message_=""
+            for err_url in all_err_url:
+                message_=message_+err_url+"\n"
+            message_=message_+"For company id: {}".format(self.company_id)
+            message_=message_+"The press release link {}".format(self.press_release_url)
+            raise(MaxErrorReached(all_err_url,self.company_id))
+
 class Cp_7(PressRelease):
     def __init__(self):
         base_url='https://www.group.citic/'
@@ -1260,20 +1589,20 @@ class Cp_7(PressRelease):
                     print(f'error: receive_content function cannot connect to {url}')
                     return from_tuple_retri(None,url,target_date=None)
         
-        try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute('href')
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(url_ele.get_attribute('href'))
-            url_list=extract_normal_link(url_list)[:5]
+        # try:
+        #     url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+        #     for url_ele in url_eles:
+        #         new_url=url_ele.get_attribute('href')
+        #         isfile_2=is_file(new_url)
+        #         if isfile_2:
+        #             url_list.append(url_ele.get_attribute('href'))
+        #     url_list=extract_normal_link(url_list)[:5]
             
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
-            b=True
+        #     for url_ in url_list:
+        #         total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+        # except Exception as e:
+        #     ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
+        #     b=True
         try:
             target_ele=driver2.find_element(By.XPATH,"//div[@class='main-content']").text
             
@@ -1353,7 +1682,7 @@ class Cp_7(PressRelease):
             #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
             driver=webdriver.Chrome(options=chrome_options)
@@ -1399,18 +1728,17 @@ class Cp_7(PressRelease):
         
 class Cp_8(PressRelease):
     def __init__(self):
-        base_url="https://www.ccnew.com.hk/"
-        press_release_url="https://www.ccnew.com.hk/tc/company/cctrend"
+        base_url="https://www.ccnew.com"
+        press_release_url="https://www.ccnew.com/main/home/informationcenter/zhongyuannews/companynews/index.shtml"
         h_code="01375.HK".lower()
-        super().__init__(base_url,press_release_url,h_code)
         self.__error_count=0
         self.__success_count=0
-        self.__robots_txt=None
+        super().__init__(base_url,press_release_url,h_code)
+        self.__robots_txt=None 
 
     @property
     def error_count(self):
         return self.__error_count
-    
     @property
     def success_count(self):
         return self.__success_count
@@ -1418,108 +1746,110 @@ class Cp_8(PressRelease):
     def add_error_count(self,add_error_count_:int=1)->None:
         self.__error_count=self.__error_count+add_error_count_
 
-    def add_success_count(self,add_count:int=1)->None: 
+    def add_success_count(self,add_count:int=1)->None:
         self.__success_count=self.__success_count+add_count
-
     def get_current_page(self,driver:WebDriver)->int:
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(FLAT_MAX_PAGE,5)
+        return 114
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,30)
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//ul[@class='inner_paging']//a[normalize-space(text())='下一頁']")))
-        driver.execute_script('arguments[0].click();', page_div)
+        wait = WebDriverWait(driver,15)
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_xpath="//a[@id='next_page']"
+        #driver_action=ActionChains(driver)
+        try:
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            #driver_action.scroll_to_element(page_div).perform()
+            driver.execute_script('arguments[0].click();', page_div)
+        except Exception:
+            print('problem getting next page, now reload the page')
+            driver.get(driver.current_url)
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
-    def retrieve_content(url:str)->dict[str,str|None]:
+    def retrieve_content(url:str,is_proxy)->dict[str,str|None]:
         date_ele=None
         total_txt=""
-        
         if url is None:
-            print('url is none')
-            return from_tuple_retri(None,"URL IS NONE")
-        
+            print("url is None")
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
                 txt=_extracting_an_document(Document.from_url(url))
-                return from_tuple_retri(txt,"")
+                print(f'downloaded the file: {url}')
+                return from_tuple_retri(txt,"",date_in_iso=date_ele)
             except Exception as e:
-                print(f'error in retrieve_content: {url}')
+                print(f'error in downloading the file {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
         url_list:list[str]=[]
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2=webdriver.Chrome(options=chrome_options)
-        driver2.set_page_load_timeout(45) 
-        max_attempts=5
-        attempts=0 
-        while attempts<max_attempts: 
+        chrome_options.add_argument("--enable-javascript")
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+            driver2=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+        else:
+            driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        try:
+            driver2.get(url)
+        except WebDriverException as e:
+            print(f'error: receive_content function cannot connect to {url}')
+            context=ssl.create_default_context(cafile=certifi.where())
             try:
-                driver2.get(url)
-                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
-                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
-                #driver2.find_element(By.ID,'save_button').click() 
-                #driver2.get(url)
-                break
-            except WebDriverException as e:
-                attempts += 1
-                if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
-                    print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-                    time.sleep(5)  # Wait for 5 seconds before retrying
-                else: 
-                    print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
-        try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute('href')
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(url_ele.get_attribute('href'))
-            url_list=extract_normal_link(url_list)
-            
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
-            b=True
-        try:
-            target_ele=driver2.find_element(By.XPATH,"//*[@id='asset']").text            
-        except Exception:
-            try: 
-                target_ele=driver2.find_element(By.XPATH,'//body').text
+                html=urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)
+                #txt_length=len(target_ele)
+                #start_index=int(txt_length/2)
+                #print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,'',date_in_iso=date_ele)
             except Exception:
-                print(f'error in retrieve_content: {url}')
+                return from_tuple_retri(None,url,date_in_iso='')
+        #try:
+            #url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            #for url_ele in url_eles:
+                #new_url=url_ele.get_attribute('href')
+                #isfile_2=is_file(new_url)
+                #if isfile_2:
+                    #url_list.append(url_ele.get_attribute('href'))
+            #url_list=extract_normal_link(url_list)
+            #for url_ in url_list:
+                #total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+                #print("extracting document {} inside a page {}".format(url_,url))
+        #except Exception as e:
+            #a=True
+        try:
+            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//div[@class='article_cont']"))).text
+            #date_ele=extract_iso_date(WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,""))).text.replace('年','-').replace('月','-').replace('日','').replace('/','-').replace('.','-'),strip()
+        except Exception:
+            try:
+                target_ele=driver2.find_element(By.TAG_NAME,'body').text
+            except:
+                print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        target_ele=total_txt+target_ele
         target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
-            print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url,date_in_iso=date_ele)
+            print(f'error in retrieve_content, content is empty, {url}')
+            from_tuple_retri("",url)
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,40)
+        wait = WebDriverWait(driver,15)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//*[@id='aboutcc']/div[@class='left']/div[@class='aboutccin']/table/tbody")))
-            rows=target_ele.find_elements(By.TAG_NAME,'tr')
+            rows_xpath="//div[@class='page_right']/div[2]/ul/li"
+            rows=wait.until(EC.presence_of_all_elements_located((By.XPATH,rows_xpath)))
         except Exception as e:
-            print(f"problem finding the list of news in a page:{driver.current_url}")
-            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
+            print("problem finding the list of news in a page")
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -1527,65 +1857,112 @@ class Cp_8(PressRelease):
         document_list:list[Document]=[]
         urls:list[str]=[]
         err_urls:list[str]=[]
-        for row_ in rows:
+        for row_index in range(len(rows)):
+            time.sleep(0.1)
+            url=None
+            title=None
+            date_in_iso=None
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
-                url=url_ele.get_attribute('href')
-                title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//td[1]").text)
-            except Exception as e:
-                print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if driver.current_url not in err_urls: 
-                    err_urls.append(driver.current_url)
+                #xpath of row_elements 
+                row_xpath=rows_xpath+f"[{row_index+1}]"
+                url_ele_xpath=row_xpath+"/a"
+                title_ele_xpath=row_xpath+"/a/h5"
+                date_xpath=row_xpath+"/a/span[1]"
 
-                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
+                #scroll to row 
+                #row_ele=wait.until(EC.presence_of_element_located((By.XPATH,row_xpath)))
+                #driver_action=ActionChains(driver)
+                #driver_action.scroll_to_element(row_ele).perform()
+
+                #other row elements
+                url=wait.until(EC.presence_of_element_located((By.XPATH,url_ele_xpath))).get_attribute('data-url')
+                url=driver.current_url+url[1:]
+                title=wait.until(EC.visibility_of_element_located((By.XPATH,title_ele_xpath))).text
+                date_in_string=wait.until(EC.visibility_of_element_located((By.XPATH,date_xpath))).text
+                date_com=date_in_string.split('\n')
+                date_in_string=date_com[1]+'-'+date_com[0]
+                date_in_iso=extract_iso_date(date_in_string.replace(' ','').replace('"','').replace('年','-').replace('月','-').replace('日','').replace('.','-').replace('/','-').strip())
+                print(url)
+                print(title)
+                print(date_in_iso)
+            except Exception as e:
+                print(f'problem with crawling elements of row {row_index} in this page: {driver.current_url}')
+                message=''
+                if url is None and title is not None:
+                    message=message+'url is problematic in this row in page: {}'.format(driver.current_url)
+                elif url is not None and title is None :
+                    message=message+'title is problematic in this row in page: {}'.format(driver.current_url)
+                else:
+                    message=message+'both url and title is problematic in this row in page: {}'.format(driver.current_url)
+                if driver.current_url not in err_urls:
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                     self.add_error_count()
                     continue
                 else:
-                    raise(MaxErrorReached())
-            if is_internal_link(base_url=self.base_url,link=url):
-                    urls.append(url)
+                    raise(MaxErrorReached(message))
+            if (type(url)==str and url!="" and url!=None) or is_file(url):
+                urls.append(url)
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             else:
+                print(f'This {url} is not an internal link')
                 continue
-            document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_8.retrieve_content)(url) for url in urls)
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_8.retrieve_content)(url,is_proxy) for url in urls)
         refined_document_list:list[Document]=[]
         for i in range(len(content_list)):
             err_url=content_list[i]["err_url"]
-            if err_url!="" and err_url!=None:
-                self.add_error_count()
-                err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
-                    raise(MaxErrorReached())
-            else:
-                document_list[i].set_content(content_list[i]["content"])
+            doc_iso_date=document_list[i].published_at
+            crawling_iso_date=content_list[i]["date_in_iso"]
+            is_url_valid=(err_url=="" or err_url==None)
+            is_doc_date_valid=is_iso_date(doc_iso_date)
+            is_crawling_iso_date_valid=is_iso_date(crawling_iso_date)
+            if is_url_valid and is_doc_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
                 refined_document_list.append(document_list[i])
                 self.add_success_count()
+            elif is_url_valid and is_crawling_iso_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            else:
+                self.add_error_count()
+                err_urls.append(err_url)
+                if not is_doc_date_valid and not is_crawling_iso_date_valid:
+                    print(f'published_at is problematic, doc:{doc_iso_date} and crawl:{crawling_iso_date}')
+                else:
+                    print('the crawling process of extracting text has error')
+                    refined_document_list.append(document_list[i])
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
+                    raise(MaxErrorReached())
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
-
 
     def crawling(self,is_proxy=False)->tuple[list[Document],str]:
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
-            driver=webdriver.Chrome(options=chrome_options)
-
+            if is_proxy:
+                driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+            else:
+                driver=webdriver.Chrome(options=chrome_options)
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
-                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
-                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
-                    #driver.find_element(By.ID,'save_button').click()    
-                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -1594,31 +1971,38 @@ class Cp_8(PressRelease):
                         time.sleep(5)
                     else:
                         print('Problem with requesting the main page')
+                        driver.exit()
                         raise(e)
             time.sleep(0.5)
+            all_doc:list[Document]=[]
             total_page=self.get_total_page(driver)
             current_page=self.get_current_page(driver)
-            all_doc:list[Document]=[]
+            start_page=1
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver,is_proxy)
-                print(f'finish crawling page{current_page} of {self.company_id}')
-                doc_list=read_page_result["doc_list"]
-                all_doc=all_doc+doc_list
-                err_url_list=read_page_result["err_url_list"]
-                all_err_url=all_err_url+err_url_list
+                if current_page>=start_page:
+                    read_page_result=self.read_page(driver,is_proxy)
+                    #print(f'finish crawling page{current_page} of {self.company_id}')
+                    doc_list=read_page_result["doc_list"]
+                    all_doc=all_doc+doc_list
+                    err_url_list=read_page_result["err_url_list"]
+                    all_err_url=all_err_url+err_url_list
                 if(current_page<total_page):
                     self.next_page(current_page,driver)
-                time.sleep(0.5)
                 current_page=current_page+1
             driver.quit()
             return all_doc,self.company_id
         except MaxErrorReached as e:
+            message_=""
+            for err_url in all_err_url:
+                message_=message_+err_url+"\n"
+            message_=message_+"For company id: {}".format(self.company_id)
+            message_=message_+"The press release link {}".format(self.press_release_url)
             raise(MaxErrorReached(all_err_url,self.company_id))
-        
+"""  
 class Cp_9(PressRelease):
     def __init__(self):
         base_url="https://www.zhglb.com/"
-        press_release_url="https://www.zhglb.com/news/1/"
+        press_release_url="https://www.zhglb.com/news/4/"
         h_code="01108.HK".lower()
         super().__init__(base_url,press_release_url,h_code)
         self.__error_count=0
@@ -1833,6 +2217,278 @@ class Cp_9(PressRelease):
             return all_doc,self.company_id
         except MaxErrorReached as e:
             raise(MaxErrorReached(all_err_url,self.company_id))
+"""
+
+class Cp_9(PressRelease):
+    def __init__(self):
+        base_url="https://www.zhglb.com"
+        press_release_url="https://www.zhglb.com/news/4/"
+        h_code="01108.HK".lower()
+        self.__error_count=0
+        self.__success_count=0
+        super().__init__(base_url,press_release_url,h_code)
+        self.__robots_txt="https://www.zhglb.com/robots.txt"
+
+    @property
+    def error_count(self):
+        return self.__error_count
+    @property
+    def success_count(self):
+        return self.__success_count
+
+    def add_error_count(self,add_error_count_:int=1)->None:
+        self.__error_count=self.__error_count+add_error_count_
+
+    def add_success_count(self,add_count:int=1)->None:
+        self.__success_count=self.__success_count+add_count
+    def get_current_page(self,driver:WebDriver)->int:
+        return 1
+
+    def get_total_page(self,driver:WebDriver)->int:
+        return 4
+
+    def next_page(self,cur_page:int,driver:WebDriver)->None:
+        wait = WebDriverWait(driver,15)
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_xpath="//a[normalize-space()='>']"
+        #driver_action=ActionChains(driver)
+        try:
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            #driver_action.scroll_to_element(page_div).perform()
+            driver.execute_script('arguments[0].click();', page_div)
+        except Exception:
+            print('problem getting next page, now reload the page')
+            driver.get(driver.current_url)
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            driver.execute_script('arguments[0].click();', page_div)
+
+    @staticmethod
+    def retrieve_content(url:str,is_proxy)->dict[str,str|None]:
+        date_ele=None
+        total_txt=""
+        if url is None:
+            print("url is None")
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
+        isfile=is_file(url)
+        if isfile:
+            try:
+                txt=_extracting_an_document(Document.from_url(url))
+                print(f'downloaded the file: {url}')
+                return from_tuple_retri(txt,"",date_in_iso=date_ele)
+            except Exception as e:
+                print(f'error in downloading the file {url}')
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
+        #url_list:list[str]=[]
+        chrome_options=Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument("--enable-javascript")
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+            driver2=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+        else:
+            driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        try:
+            driver2.get(url)
+        except WebDriverException as e:
+            print(f'error: receive_content function cannot connect to {url}')
+            context=ssl.create_default_context(cafile=certifi.where())
+            try:
+                html=urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)
+                #txt_length=len(target_ele)
+                #start_index=int(txt_length/2)
+                #print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,'',date_in_iso=date_ele)
+            except Exception:
+                return from_tuple_retri(None,url,date_in_iso='')
+        #try:
+            #url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            #for url_ele in url_eles:
+                #new_url=url_ele.get_attribute('href')
+                #isfile_2=is_file(new_url)
+                #if isfile_2:
+                    #url_list.append(url_ele.get_attribute('href'))
+            #url_list=extract_normal_link(url_list)
+            #for url_ in url_list:
+                #total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+                #print("extracting document {} inside a page {}".format(url_,url))
+        #except Exception as e:
+            #a=True
+        try:
+            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//body"))).text
+            #date_ele=extract_iso_date(WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,""))).text.replace('年','-').replace('月','-').replace('日','').replace('/','-').replace('.','-'),strip()
+        except Exception:
+            try:
+                target_ele=driver2.find_element(By.TAG_NAME,'body').text
+            except:
+                print(f'error in retrieve_content: {driver2.current_url}')
+                driver2.quit()
+                return from_tuple_retri(None,url,date_in_iso=date_ele)
+        target_ele=target_ele+total_txt
+        if target_ele==0 or target_ele==None:
+            driver2.quit()
+            print(f'error in retrieve_content, content is empty, {url}')
+            from_tuple_retri("",url)
+        driver2.quit()
+        return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
+
+    def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
+        wait = WebDriverWait(driver,15)
+        try:
+            rows_xpath="//div[@class='p_list']/div"
+            rows=wait.until(EC.presence_of_all_elements_located((By.XPATH,rows_xpath)))
+        except Exception as e:
+            print("problem finding the list of news in a page")
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
+                self.add_error_count(5)
+                return from_tuple_read([],[driver.current_url])
+            else:
+                raise(MaxErrorReached())
+        document_list:list[Document]=[]
+        urls:list[str]=[]
+        err_urls:list[str]=[]
+        for row_index in range(len(rows)):
+            time.sleep(0.1)
+            url=None
+            title=None
+            date_in_iso=None
+            try:
+                #xpath of row_elements 
+                row_xpath=rows_xpath+f"[{row_index+1}]"
+                url_ele_xpath=row_xpath+"/div/div[2]//a"
+                #title_ele_xpath=row_xpath+"/"
+                date_xpath=row_xpath+"/div/div[3]/p"
+
+                #scroll to row 
+                #row_ele=wait.until(EC.presence_of_element_located((By.XPATH,row_xpath)))
+                #driver_action=ActionChains(driver)
+                #driver_action.scroll_to_element(row_ele).perform()
+
+                #other row elements
+                url=wait.until(EC.presence_of_element_located((By.XPATH,url_ele_xpath))).get_attribute('href')
+                title=wait.until(EC.visibility_of_element_located((By.XPATH,url_ele_xpath))).text
+                date_in_string=wait.until(EC.visibility_of_element_located((By.XPATH,date_xpath))).text
+                date_in_iso=extract_iso_date(date_in_string.replace(' ','').replace('"','').replace('年','-').replace('月','-').replace('日','').replace('.','-').replace('/','-').strip())
+                print(url)
+                print(title)
+                print(date_in_iso)
+            except Exception as e:
+                print(f'problem with crawling elements of row {row_index} in this page: {driver.current_url}')
+                message=''
+                if url is None and title is not None:
+                    message=message+'url is problematic in this row in page: {}'.format(driver.current_url)
+                elif url is not None and title is None :
+                    message=message+'title is problematic in this row in page: {}'.format(driver.current_url)
+                else:
+                    message=message+'both url and title is problematic in this row in page: {}'.format(driver.current_url)
+                if driver.current_url not in err_urls:
+                    err_urls.append(driver.current_url)
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
+                    self.add_error_count()
+                    continue
+                else:
+                    raise(MaxErrorReached(message))
+            if (type(url)==str and url!="" and url!=None) or is_file(url):
+                urls.append(url)
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
+            else:
+                print(f'This {url} is not an internal link')
+                continue
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_9.retrieve_content)(url,is_proxy) for url in urls)
+        refined_document_list:list[Document]=[]
+        for i in range(len(content_list)):
+            err_url=content_list[i]["err_url"]
+            doc_iso_date=document_list[i].published_at
+            crawling_iso_date=content_list[i]["date_in_iso"]
+            is_url_valid=(err_url=="" or err_url==None)
+            is_doc_date_valid=is_iso_date(doc_iso_date)
+            is_crawling_iso_date_valid=is_iso_date(crawling_iso_date)
+            if is_url_valid and is_doc_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            elif is_url_valid and is_crawling_iso_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            else:
+                self.add_error_count()
+                err_urls.append(err_url)
+                if not is_doc_date_valid and not is_crawling_iso_date_valid:
+                    print(f'published_at is problematic, doc:{doc_iso_date} and crawl:{crawling_iso_date}')
+                else:
+                    print('the crawling process of extracting text has error')
+                    refined_document_list.append(document_list[i])
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
+                    raise(MaxErrorReached())
+        return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
+
+    def crawling(self,is_proxy=False)->tuple[list[Document],str]:
+        chrome_options=Options()
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+        chrome_options.add_argument("--enable-javascript")
+        #chrome_options.add_argument('--headless')
+        try:
+            all_err_url:list[str]=[]
+            if is_proxy:
+                driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+            else:
+                driver=webdriver.Chrome(options=chrome_options)
+            max_attempts=5
+            attempts=0
+            while attempts<max_attempts:
+                try:
+                    driver.get(self.press_release_url)
+                    break
+                except WebDriverException as e:
+                    if 'net::ERR_CONNECTION_RESET' in str(e):
+                        attempts+=1
+                        print(f'Attempt {attempts} of {max_attempts} failed with error: {e}')
+                        time.sleep(5)
+                    else:
+                        print('Problem with requesting the main page')
+                        driver.exit()
+                        raise(e)
+            time.sleep(0.5)
+            all_doc:list[Document]=[]
+            total_page=self.get_total_page(driver)
+            current_page=self.get_current_page(driver)
+            start_page=1
+            while(current_page<=total_page):
+                if current_page>=start_page:
+                    read_page_result=self.read_page(driver,is_proxy)
+                    #print(f'finish crawling page{current_page} of {self.company_id}')
+                    doc_list=read_page_result["doc_list"]
+                    all_doc=all_doc+doc_list
+                    err_url_list=read_page_result["err_url_list"]
+                    all_err_url=all_err_url+err_url_list
+                if(current_page<total_page):
+                    self.next_page(current_page,driver)
+                current_page=current_page+1
+            driver.quit()
+            return all_doc,self.company_id
+        except MaxErrorReached as e:
+            message_=""
+            for err_url in all_err_url:
+                message_=message_+err_url+"\n"
+            message_=message_+"For company id: {}".format(self.company_id)
+            message_=message_+"The press release link {}".format(self.press_release_url)
+            raise(MaxErrorReached(all_err_url,self.company_id))
+
         
 class Cp_10(PressRelease):
     def __init__(self):
@@ -2271,18 +2927,17 @@ class Cp_11(PressRelease):
 
 class Cp_12(PressRelease):
     def __init__(self):
-        base_url="https://www.dongjiang.com.cn/"
-        press_release_url="https://www.dongjiang.com.cn/main/media/djxw/index.shtml"
-        h_code="00895.HK".lower()
-        super().__init__(base_url,press_release_url,h_code)
+        base_url="https://www.dongjiang.com.cn"
+        press_release_url="https://www.dongjiang.com.cn/main/media/mtbd/index.shtml"
+        h_code="".lower()
         self.__error_count=0
         self.__success_count=0
+        super().__init__(base_url,press_release_url,h_code)
         self.__robots_txt=None
 
     @property
     def error_count(self):
         return self.__error_count
-    
     @property
     def success_count(self):
         return self.__success_count
@@ -2290,111 +2945,110 @@ class Cp_12(PressRelease):
     def add_error_count(self,add_error_count_:int=1)->None:
         self.__error_count=self.__error_count+add_error_count_
 
-    def add_success_count(self,add_count:int=1)->None: 
+    def add_success_count(self,add_count:int=1)->None:
         self.__success_count=self.__success_count+add_count
-
     def get_current_page(self,driver:WebDriver)->int:
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(FLAT_MAX_PAGE,234)
+        return 6
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,30)
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        driver.execute_script('arguments[0].click();', page_div)
+        wait = WebDriverWait(driver,15)
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
+        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
+        page_xpath="//a[contains(text(),'下一页')]"
+        #driver_action=ActionChains(driver)
+        try:
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            #driver_action.scroll_to_element(page_div).perform()
+            driver.execute_script('arguments[0].click();', page_div)
+        except Exception:
+            print('problem getting next page, now reload the page')
+            driver.get(driver.current_url)
+            page_div=wait.until(EC.element_to_be_clickable((By.XPATH,page_xpath)))
+            driver.execute_script('arguments[0].click();', page_div)
 
     @staticmethod
-    def retrieve_content(url:str)->dict[str,str|None]:
+    def retrieve_content(url:str,is_proxy)->dict[str,str|None]:
         date_ele=None
         total_txt=""
-        
         if url is None:
-            print('The url is None')
-            return from_tuple_retri(None,'None')
-        
+            print("url is None")
+            return from_tuple_retri(None,url,date_in_iso=date_ele)
         isfile=is_file(url)
         if isfile:
             try:
                 txt=_extracting_an_document(Document.from_url(url))
-                return from_tuple_retri(txt,"")
+                print(f'downloaded the file: {url}')
+                return from_tuple_retri(txt,"",date_in_iso=date_ele)
             except Exception as e:
-                print(f'error in retrieve_content: {url}')
+                print(f'error in downloading the file {url}')
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
         url_list:list[str]=[]
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument("--enable-javascript")
         chrome_options.add_argument('--headless')
-        driver2=webdriver.Chrome(options=chrome_options)                                
-            
-        
-        driver2.set_page_load_timeout(45) 
-        max_attempts=5
-        attempts=0 
-        while attempts<max_attempts: 
+        chrome_options.add_argument("--enable-javascript")
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
+            driver2=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+        else:
+            driver2=webdriver.Chrome(options=chrome_options)
+        driver2.set_page_load_timeout(30)
+        try:
+            driver2.get(url)
+        except WebDriverException as e:
+            print(f'error: receive_content function cannot connect to {url}')
+            context=ssl.create_default_context(cafile=certifi.where())
             try:
-                driver2.get(url)
-                #driver2.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                #driver2.find_element(By.ID,'username_field').send_keys(proxy_username)
-                #driver2.find_element(By.ID,'password_field').send_keys(proxy_password)
-                #driver2.find_element(By.ID,'save_button').click() 
-                #driver2.get(url)
-                break
-            except WebDriverException as e:
-                attempts += 1
-                if "net::ERR_CONNECTION_RESET" in str(e) and attempts<max_attempts:
-                    print(f"Attempt {attempts} of {max_attempts} failed with error: {e}")
-                    time.sleep(5)  # Wait for 5 seconds before retrying
-                else: 
-                    print(f'error: receive_content function cannot connect to {url}')
-                    return from_tuple_retri(None,url,date_in_iso=date_ele)
-        
-        try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute('href')
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(url_ele.get_attribute('href'))
-            url_list=extract_normal_link(url_list)
-            
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
-            b=True
-        try:
-            target_ele=driver2.find_element(By.XPATH,"//div[@class='main-right1']").text
-            
-        except Exception:
-            try: 
-                target_ele=driver2.find_element(By.XPATH,'//body').text
+                html=urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)
+                #txt_length=len(target_ele)
+                #start_index=int(txt_length/2)
+                #print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,'',date_in_iso=date_ele)
             except Exception:
-                print(f'error in retrieve_content: {url}')
+                return from_tuple_retri(None,url,date_in_iso='')
+        #try:
+            #url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+            #for url_ele in url_eles:
+                #new_url=url_ele.get_attribute('href')
+                #isfile_2=is_file(new_url)
+                #if isfile_2:
+                    #url_list.append(url_ele.get_attribute('href'))
+            #url_list=extract_normal_link(url_list)
+            #for url_ in url_list:
+                #total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+                #print("extracting document {} inside a page {}".format(url_,url))
+        #except Exception as e:
+            #a=True
+        try:
+            target_ele=WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,"//body"))).text
+            #date_ele=extract_iso_date(WebDriverWait(driver2,15).until(EC.visibility_of_element_located((By.XPATH,""))).text.replace('年','-').replace('月','-').replace('日','').replace('/','-').replace('.','-'),strip()
+        except Exception:
+            try:
+                target_ele=driver2.find_element(By.TAG_NAME,'body').text
+            except:
+                print(f'error in retrieve_content: {driver2.current_url}')
                 driver2.quit()
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
-        target_ele=total_txt+target_ele
         target_ele=target_ele+total_txt
         if target_ele==0 or target_ele==None:
-            print(f'error in retrieve_content, content is empty, {url}')
             driver2.quit()
-            return from_tuple_retri(target_ele,url,date_in_iso=date_ele) 
+            print(f'error in retrieve_content, content is empty, {url}')
+            from_tuple_retri("",url)
         driver2.quit()
         return from_tuple_retri(target_ele,"",date_in_iso=date_ele)
 
     def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
-        wait = WebDriverWait(driver,40)
+        wait = WebDriverWait(driver,15)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='news']//ul")))
-            rows=target_ele.find_elements(By.TAG_NAME,'li')
+            rows_xpath="//div[@class='main-right']//ul/li"
+            rows=wait.until(EC.presence_of_all_elements_located((By.XPATH,rows_xpath)))
         except Exception as e:
-            print(f"problem with finding the list of news: {driver.current_url}")
-            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:  
+            print("problem finding the list of news in a page")
+            if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                 self.add_error_count(5)
                 return from_tuple_read([],[driver.current_url])
             else:
@@ -2402,65 +3056,109 @@ class Cp_12(PressRelease):
         document_list:list[Document]=[]
         urls:list[str]=[]
         err_urls:list[str]=[]
-        for row_ in rows:
+        for row_index in range(len(rows)):
+            time.sleep(0.1)
+            url=None
+            title=None
+            date_in_iso=None
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
-                url=url_ele.get_attribute('href')
-                title=url_ele.text
-                date_in_iso=extract_iso_date(row_.find_element(By.XPATH,".//span").text)
+                #xpath of row_elements 
+                row_xpath=rows_xpath+f"[{row_index+1}]"
+                url_ele_xpath=row_xpath+"/a"
+                #title_ele_xpath=row_xpath+"/"
+                date_xpath=row_xpath+"/span"
+
+                #scroll to row 
+                #row_ele=wait.until(EC.presence_of_element_located((By.XPATH,row_xpath)))
+                #driver_action=ActionChains(driver)
+                #driver_action.scroll_to_element(row_ele).perform()
+
+                #other row elements
+                url=wait.until(EC.presence_of_element_located((By.XPATH,url_ele_xpath))).get_attribute('href')
+                title=wait.until(EC.visibility_of_element_located((By.XPATH,url_ele_xpath))).text
+                date_in_string=wait.until(EC.visibility_of_element_located((By.XPATH,date_xpath))).text
+                date_in_iso=extract_iso_date(date_in_string.replace(' ','').replace('"','').replace('年','-').replace('月','-').replace('日','').replace('.','-').replace('/','-').strip())
+                print(url)
+                print(title)
+                print(date_in_iso)
             except Exception as e:
-                print(f'issue with find doc info in a row of a page {driver.current_url}')
-                if driver.current_url not in err_urls: 
+                print(f'problem with crawling elements of row {row_index} in this page: {driver.current_url}')
+                message=''
+                if url is None and title is not None:
+                    message=message+'url is problematic in this row in page: {}'.format(driver.current_url)
+                elif url is not None and title is None :
+                    message=message+'title is problematic in this row in page: {}'.format(driver.current_url)
+                else:
+                    message=message+'both url and title is problematic in this row in page: {}'.format(driver.current_url)
+                if driver.current_url not in err_urls:
                     err_urls.append(driver.current_url)
-                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count: 
+                if self.error_count<ERROR_COUNT or self.success_count*CONVERTION_RATE>self.__error_count:
                     self.add_error_count()
                     continue
                 else:
-                    raise(MaxErrorReached())
-            if is_internal_link(base_url=self.base_url,link=url):
-                    urls.append(url)
+                    raise(MaxErrorReached(message))
+            if (type(url)==str and url!="" and url!=None) or is_file(url):
+                urls.append(url)
+                document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
             else:
+                print(f'This {url} is not an internal link')
                 continue
-            document_list.append(Document(url,title,date_in_iso,self.press_release_url,None,None,self.company_id))
-        content_list = Parallel(n_jobs=-1)(delayed(Cp_12.retrieve_content)(url) for url in urls)
+        content_list = Parallel(n_jobs=-1)(delayed(Cp_12.retrieve_content)(url,is_proxy) for url in urls)
         refined_document_list:list[Document]=[]
         for i in range(len(content_list)):
             err_url=content_list[i]["err_url"]
-            if err_url!="" and err_url!=None:
-                self.add_error_count()
-                err_urls.append(err_url)
-                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
-                    raise(MaxErrorReached())
-            else:
-                document_list[i].set_content(content_list[i]["content"])
+            doc_iso_date=document_list[i].published_at
+            crawling_iso_date=content_list[i]["date_in_iso"]
+            is_url_valid=(err_url=="" or err_url==None)
+            is_doc_date_valid=is_iso_date(doc_iso_date)
+            is_crawling_iso_date_valid=is_iso_date(crawling_iso_date)
+            if is_url_valid and is_doc_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
                 refined_document_list.append(document_list[i])
                 self.add_success_count()
+            elif is_url_valid and is_crawling_iso_date_valid:
+                content_to_be_set=content_list[i]["content"]
+                #content_len=len(content_to_be_set)
+                #start_index=int(content_len/2)
+                #print(content_to_be_set[start_index:start_index+30])
+                document_list[i].set_content(content_to_be_set)
+                document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                refined_document_list.append(document_list[i])
+                self.add_success_count()
+            else:
+                self.add_error_count()
+                err_urls.append(err_url)
+                if not is_doc_date_valid and not is_crawling_iso_date_valid:
+                    print(f'published_at is problematic, doc:{doc_iso_date} and crawl:{crawling_iso_date}')
+                else:
+                    print('the crawling process of extracting text has error')
+                    refined_document_list.append(document_list[i])
+                if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
+                    raise(MaxErrorReached())
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
-
 
     def crawling(self,is_proxy=False)->tuple[list[Document],str]:
         chrome_options=Options()
-        #if PROXY is not None: 
-            #chrome_options.add_extension(extension_path)
-            #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        if is_proxy:
+            proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
+            chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
-            driver=webdriver.Chrome(options=chrome_options)
-
-
+            if is_proxy:
+                driver=webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=chrome_options)
+            else:
+                driver=webdriver.Chrome(options=chrome_options)
             max_attempts=5
             attempts=0
             while attempts<max_attempts:
                 try:
                     driver.get(self.press_release_url)
-                    #driver.get('chrome-extension://ajkhmmldknmfjnmeedkbkkojgobmljda/options.html')
-                    #driver.find_element(By.ID,'username_field').send_keys(proxy_username)
-                    #driver.find_element(By.ID,'password_field').send_keys(proxy_password)
-                    #driver.find_element(By.ID,'save_button').click()    
-                    #driver.get(self.press_release_url)
                     break
                 except WebDriverException as e:
                     if 'net::ERR_CONNECTION_RESET' in str(e):
@@ -2469,25 +3167,32 @@ class Cp_12(PressRelease):
                         time.sleep(5)
                     else:
                         print('Problem with requesting the main page')
+                        driver.exit()
                         raise(e)
             time.sleep(0.5)
+            all_doc:list[Document]=[]
             total_page=self.get_total_page(driver)
             current_page=self.get_current_page(driver)
-            all_doc:list[Document]=[]
+            start_page=1
             while(current_page<=total_page):
-                read_page_result=self.read_page(driver,is_proxy)
-                print(f'finish crawling page{current_page} of {self.company_id}')
-                doc_list=read_page_result["doc_list"]
-                all_doc=all_doc+doc_list
-                err_url_list=read_page_result["err_url_list"]
-                all_err_url=all_err_url+err_url_list
+                if current_page>=start_page:
+                    read_page_result=self.read_page(driver,is_proxy)
+                    #print(f'finish crawling page{current_page} of {self.company_id}')
+                    doc_list=read_page_result["doc_list"]
+                    all_doc=all_doc+doc_list
+                    err_url_list=read_page_result["err_url_list"]
+                    all_err_url=all_err_url+err_url_list
                 if(current_page<total_page):
                     self.next_page(current_page,driver)
-                time.sleep(0.5)
                 current_page=current_page+1
             driver.quit()
             return all_doc,self.company_id
         except MaxErrorReached as e:
+            message_=""
+            for err_url in all_err_url:
+                message_=message_+err_url+"\n"
+            message_=message_+"For company id: {}".format(self.company_id)
+            message_=message_+"The press release link {}".format(self.press_release_url)
             raise(MaxErrorReached(all_err_url,self.company_id))
 
 class Cp_13(PressRelease):
@@ -3596,7 +4301,7 @@ class Cp_17(PressRelease):
 class Cp_18(PressRelease):
     def __init__(self):
         base_url="http://www.ebscn.com/"
-        press_release_url="http://www.ebscn.com/inverstorRelations/dqgg/hggg/"
+        press_release_url="http://www.ebscn.com/zjgd/mtgz/"
         h_code="06178.HK".lower()
         super().__init__(base_url,press_release_url,h_code)
         self.__error_count=0
@@ -3621,14 +4326,10 @@ class Cp_18(PressRelease):
         return 1
 
     def get_total_page(self,driver:WebDriver)->int:
-        return min(FLAT_MAX_PAGE,57)
+        return 1
 
     def next_page(self,cur_page:int,driver:WebDriver)->None:
-        wait = WebDriverWait(driver,30)
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[normalize-space(text())='下一页']")))
-        #page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[contains(text(),'下一页')]")))
-        page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@id='next_page']")))
-        driver.execute_script('arguments[0].click();', page_div)
+        pass
 
     @staticmethod
     def retrieve_content(url:str)->dict[str,str|None]:
@@ -3677,25 +4378,25 @@ class Cp_18(PressRelease):
                     print(f'error: receive_content function cannot connect to {url}')
                     return from_tuple_retri(None,url,date_in_iso=None)
         
-        try:
-            url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
-            for url_ele in url_eles:
-                new_url=url_ele.get_attribute('href')
-                isfile_2=is_file(new_url)
-                if isfile_2:
-                    url_list.append(url_ele.get_attribute('href'))
-            url_list=extract_normal_link(url_list)
+        # try:
+        #     url_eles=WebDriverWait(driver2,30).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
+        #     for url_ele in url_eles:
+        #         new_url=url_ele.get_attribute('href')
+        #         isfile_2=is_file(new_url)
+        #         if isfile_2:
+        #             url_list.append(url_ele.get_attribute('href'))
+        #     url_list=extract_normal_link(url_list)
             
-            for url_ in url_list:
-                total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
-        except Exception as e:
-            ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
-            b=True
+        #     for url_ in url_list:
+        #         total_txt=total_txt+_extracting_an_document(Document.from_url(url_))
+        # except Exception as e:
+        #     ##print(f'Warning in extracting content from other url elements from one url in retrieve_content function:{url}')
+        #     b=True
         try:
             target_ele=driver2.find_element(By.XPATH,"//div[@class='words']").text
             
-            date_ele=driver2.find_element(By.XPATH,"//div[@class='content']//div[@class='article_detail']//div[@class='top']//p[@class='p1']").text 
-            date_ele=extract_iso_date(date_ele.split(":")[1].strip().split(' ')[0])
+            date_ele=driver2.find_element(By.XPATH,"//body/div/div/div/div/div/div/div[1]/p[1]").text 
+            date_ele=extract_iso_date(date_ele)
         except Exception:
             try: 
                 target_ele=driver2.find_element(By.XPATH,'//body').text
@@ -3714,7 +4415,7 @@ class Cp_18(PressRelease):
     def read_page(self,driver:WebDriver,is_proxy)->tuple[list[Document],list[str]]:
         wait = WebDriverWait(driver,40)
         try:
-            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='bk_child']//ul")))
+            target_ele=wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='gd_news']/div[1]/ul")))
             rows=target_ele.find_elements(By.TAG_NAME,'li')
         except Exception as e:
             print(f"problem with finding the list of news: {driver.current_url}")
@@ -3728,7 +4429,7 @@ class Cp_18(PressRelease):
         err_urls:list[str]=[]
         for row_ in rows:
             try:
-                url_ele=row_.find_element(By.XPATH,".//a")
+                url_ele=row_.find_element(By.XPATH,"./a")
                 url=url_ele.get_attribute('href')
                 title=url_ele.text
             except Exception as e:
@@ -3771,7 +4472,7 @@ class Cp_18(PressRelease):
             #chrome_options.add_argument(f'--proxy-server={proxy_ip}:{proxy_port}')
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
             driver=webdriver.Chrome(options=chrome_options)

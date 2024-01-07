@@ -1,30 +1,77 @@
+import sqlite3
+from company.orm import Object2Relational
 import time
 from selenium.common.exceptions import WebDriverException
 from company.company import * 
 from company.orm import Object2Relational
 from urllib.parse import urlparse
 
-from bs4 import BeautifulSoup
-from bs4.element import Comment
+from bs4 import BeautifulSoup, SoupStrainer, Comment
 import urllib.request
+from urllib.parse import urljoin
 
+from lxml import etree
+import multiprocessing
+from itertools import chain
 
 def tag_visible(element):
-    if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
+    if element.parent.name in ('style', 'script', 'head', 'title', 'meta', '[document]'):
         return False
     if isinstance(element, Comment):
         return False
     return True
 
-
 def text_from_html(body):
-    soup = BeautifulSoup(body, 'html.parser')
-    texts = soup.findAll(text=True)
-    visible_texts = filter(tag_visible, texts)  
-    return u" ".join(t.strip() for t in visible_texts)
+    # Use lxml for faster parsing
+    only_body = SoupStrainer('body')
+    soup = BeautifulSoup(body, 'lxml',parse_only=only_body)
+    visible_texts = []
+    for element in soup.descendants:
+    # Skip any Comment elements or empty strings
+        if isinstance(element, Comment) or isinstance(element, str) and not element.strip():
+            continue
+        if element.parent.name in ('script', 'style', 'head', 'title', 'meta', '[document]'):
+            continue        
+        # Add the stripped string of the element to our list
+        text = element.string.strip()
+        if text:
+            visible_texts.append(text)
+    # Join all the texts collected
+    return ' '.join(visible_texts)        
+        
+    
 
 
+# def text_from_html(body):
+#     # Parse the HTML content using lxml
+#     parser = etree.HTMLParser()
+#     tree = etree.fromstring(body, parser)
+    
+#     # Get all the text within the document
+#     texts = tree.xpath("//body//text()[not(ancestor::script) and not(ancestor::style) and not(ancestor::head) and not(ancestor::title) and not(ancestor::meta)]")
+    
+#     # Filter out whitespace strings and join non-empty strings
+#     return ' '.join(filter(None, (t.strip() for t in texts)))
 
+def make_full_url(base_url, relative_url_info):
+    """
+    take something like: location.href='../news_center/news_detail.html?id=830' and a base url 
+    then return the full url
+    
+    """
+    relative_url = relative_url_info.split('=')[1].strip('\'"')
+    full_url = urljoin(base_url, relative_url)
+    
+    return full_url
+
+
+def reverse_date_in_str(string:str): 
+    if type(string) != str: 
+        mes_="the date string should be of type string, not {}".format(type(string))
+        raise(TypeError(mes_))
+    else: 
+        parts = string.split('-')
+        return f"{parts[2]}-{parts[1]}-{parts[0]}"
 
 def is_iso_date(string): 
     if string ==None or type(string)!=str: 
@@ -127,7 +174,7 @@ def from_tuple_read(doc_list:list[Document],err_url_list:list[str]):
 
 def get_id_from_h_code(h_code:str): 
     cp_handle=Object2Relational(Company)
-    result:Company=cp_handle.fetch_some(('h_code=?',h_code))[0]
+    result:Company=cp_handle.fetch_some(('h_code=?',h_code.lower()))[0]
     return result.id
 
 def driver_connect(driver,url):
@@ -194,7 +241,10 @@ class PressRelease:
     
     
     def get_id_from_h_code(h_code:str,db_path=COMPANIES_DB):
-        pass 
+        company_handler=Object2Relational(Company)
+        result_id=company_handler.fetch_some(('h_code=',h_code))
+        return result_id
+        
     
     def get_current_page(self,driver)->int:
         pass

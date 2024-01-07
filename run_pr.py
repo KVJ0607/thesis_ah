@@ -1,42 +1,91 @@
+import logging
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
-#from article.press_release import * 
+from company.orm import Object2Relational
+from utils.crawling import get_id_from_h_code
+from article.press_release import * 
 #from article.press_release_2 import * 
 #from article.press_release_3 import * 
 #from article.press_release_4 import * 
-from article.press_release_5 import * 
+#from article.press_release_5 import * 
+from article.press_release_6 import * 
+#from article.press_release_7 import * 
 #from article.temp_pr import *
 from utils.constant import COMPANIES_DB
 
-def documents_commit(docs:list[Document],cp_id:int):
-    refined_docs=[redoc for redoc in docs if redoc.url is not None ]
-    print(cp_id,f" len of doc:{len(refined_docs)}")
-    con=sqlite3.connect(COMPANIES_DB)
-    c=con.cursor()
-    sql_="""
-        INSERT INTO document (url,title,published_at,source,content,company_id)
-        VALUES(?,?,?,?,?,?)
-        ON CONFLICT(url,company_id) DO UPDATE SET
-        title = excluded.title, 
-        published_at = excluded.published_at,
-        source = excluded.source,
-        content = excluded.content,
-        company_id = excluded.company_id    
+def delete_other_than_hkex(h_code,db_path=COMPANIES_DB): 
+
+    logging.basicConfig(level=logging.INFO,filename="temp_log.txt")
+    try:
+        conn = sqlite3.connect(db_path)
+
+        # Create a cursor object
+        cursor = conn.cursor()
+        sql_delete_query = """
+        DELETE FROM document
+        WHERE company_id IS NULL
+        AND source <> 'HKEXNEWS';
         """
-    for redoc in refined_docs: 
-        para=(redoc.url,redoc.title,redoc.published_at,redoc.source,redoc.content,cp_id)
-        c.execute(sql_,para)
+        # Execute the SQL command
+        cursor.execute(sql_delete_query)    
+    # Commit the changes to the database
+        conn.commit()
+        print(f"{cursor.rowcount} rows deleted.")
+
+    except sqlite3.Error as error:
+        # Rollback in case of an error
+        conn.rollback()
+        print(f"Failed to delete rows from sqlite table. Error: {error}")
+
+    finally:
+        # Close the cursor and connection to the database
+        cursor.close()
+        conn.close()   
         
-    con.commit()
-    c.close()
-    con.close()
+def fill_up_id(source_url:str,h_code:str): 
+    document_handler=Object2Relational(Document)    
+    company_id=get_id_from_h_code(h_code)
+    document_handler.update_single_col('document','company_id',company_id,'source',source_url)
+    
+def documents_commit(docs:list[Document],cp_id:int):
+    try:
+        print("The cp_id is {}".format(docs[1].company_id))
+        refined_docs=[redoc for redoc in docs if redoc.url is not None ]
+        print(cp_id,f" len of doc:{len(refined_docs)}")
+        con=sqlite3.connect(COMPANIES_DB)
+        c=con.cursor()
+        sql_="""
+            INSERT INTO document (url,title,published_at,source,content,company_id)
+            VALUES(?,?,?,?,?,?)
+            ON CONFLICT(url,company_id) DO UPDATE SET
+            title = excluded.title, 
+            published_at = excluded.published_at,
+            source = excluded.source,
+            content = excluded.content,
+            company_id = excluded.company_id    
+            """
+        for redoc in refined_docs: 
+            para=(redoc.url,redoc.title,redoc.published_at,redoc.source,redoc.content,cp_id)
+            c.execute(sql_,para)
         
+        con.commit()
+        c.close()
+        con.close()
+    except: 
+        
+
 
 # temp_doc,cp_id=Cp_1().crawling()
 # for my_doc_ in temp_doc: 
 #     print(my_doc_.url)
 #     print(my_doc_.title," ",my_doc_.published_at)
 # documents_commit(temp_doc,cp_id)
+
+# fill_up_id("http://www.zjshibao.com/tc/tc_news/list-44.html",Cp_2().h_code)
+
+# fill_up_id("https://btic.cn/news-246.html",Cp_3().h_code)
+
+# fill_up_id("http://www.fd-zj.com/desktopmodules/ht/Big5/News/Index.aspx?LS=1",Cp_4().h_code)
 
 # temp_doc=[]
 # temp_doc,cp_id=Cp_2().crawling()
@@ -270,10 +319,12 @@ def documents_commit(docs:list[Document],cp_id:int):
 # documents_commit(temp_doc,cp_id)
 
 # temp_doc,cp_id=Cp_38().crawling()
-# for my_doc_ in temp_doc: 
+# for my_doc_ in temp_doc:
 #     print(my_doc_.url)
-#     print(my_doc_.title," ",my_doc_.published_at )
+#     print(my_doc_.title,' ',my_doc_.published_at)
 # documents_commit(temp_doc,cp_id)
+
+
 
 
 # temp_doc,cp_id=Cp_39().crawling()
@@ -614,10 +665,214 @@ def documents_commit(docs:list[Document],cp_id:int):
 #     print(my_doc_.title,' ',my_doc_.published_at)
 # documents_commit(temp_doc,cp_id)
 
-temp_doc,cp_id=Cp_92().crawling()
+# temp_doc,cp_id=Cp_92().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_93().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_94().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_95().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_96().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_97().crawling()
+# for my_doc_ in temp_doc:
+#     con_len=len(my_doc_.content)
+#     start_index=int(con_len/2)
+#     print(my_doc_.content[start_index:start_index+20])
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_98().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_99().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_100().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_101().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_102().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_103().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_104().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_105().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_106().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_107().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_108().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_109().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_110().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_111().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_112().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_113().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_114().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+temp_doc,cp_id=Cp_115().crawling()
 for my_doc_ in temp_doc:
     print(my_doc_.url)
     print(my_doc_.title,' ',my_doc_.published_at)
 documents_commit(temp_doc,cp_id)
+
+temp_doc,cp_id=Cp_116().crawling()
+for my_doc_ in temp_doc:
+    print(my_doc_.url)
+    print(my_doc_.title,' ',my_doc_.published_at)
+documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_117().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_118().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_119().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_120().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+
+# temp_doc,cp_id=Cp_121().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_122().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_123().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_124().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
+
+# temp_doc,cp_id=Cp_125().crawling()
+# for my_doc_ in temp_doc:
+#     print(my_doc_.url)
+#     print(my_doc_.title,' ',my_doc_.published_at)
+# documents_commit(temp_doc,cp_id)
 
 
