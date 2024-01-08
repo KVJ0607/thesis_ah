@@ -10,6 +10,11 @@ with open(os.path.join(INSTANCE_PATH,'config.py'),'r') as f:
             db_path=db_path.strip('"').strip("'")
 COMPANIES_DB=os.path.join(INSTANCE_PATH,db_path)
 
+ZH_DICTIONARY='data/vsa/chi_sent_dict.csv'
+EN_DICTIONARY='data/vsa/en_sent_dict.csv'
+ZH_STOPWORDS='data/vsa/stopwords(ch)_encoded.txt'
+EN_STOPWORDS='data/vsa/stopwords(en).txt'
+
 # Source data
 MASTER_DICTIONARY_FILENAME='data/master_dictionary/Loughran-McDonald_MasterDictionary_1993-2021.csv'
 PRICING_DATA_SOURCE="data/pricing"

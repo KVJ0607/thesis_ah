@@ -1348,7 +1348,71 @@ class Document:
         tone_score=positive_score-negative_score
         result=Tonescore(tone_score,positive_score,negative_score,self.url,self.title,self.published_at,None,None,None,self.id)
         return result
-class Tonescore:
+class Tonescore: 
+    REFERENCE_TABLE={
+        'document':[('id','document')]        
+    }
+    
+    @classmethod
+    def rational_representation(cls)->str:
+        return 'tonescore'    
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+    
+    @classmethod
+    def db_insert_col(cls)->str: 
+        """generate the sql for Insert row to db
+
+        Returns:
+            str: The sql_ with ? place holder for insert row 
+        """
+        sql="""INSERT INTO tonescore(tonescore,positive_score,negative_score,document_id,company_id')
+                VALUES(?,?,?,?,?)"""
+        return sql
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO tonescore(tonescore,positive_score,negative_score,document_id,company_id')
+                VALUES(?,?,?,?,?)"""        
+        return sql
+    
+    @classmethod
+    def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
+        result=cls.REFERENCE_TABLE.get(main_table_rr,None)
+        if result==None: 
+            raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result    
+    
+    def __init__(self,tonescore:float,positive_score:float,negative_score:float,id:int|None=None,document_id:int|None=None):        
+        self.__tonescore=tonescore
+        self.__positive_score=positive_score
+        self.__negative_score=negative_score                                
+        #db 
+        self.__id=id        
+        self.__document_id=document_id
+
+    @classmethod
+    def from_tuple(self,tonescore_tuple:tuple)->'Tonescore': 
+        if len(tonescore_tuple)==10: 
+            tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_=tonescore_tuple
+        elif len(tonescore_tuple)==9: 
+            tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,article_id_,document_id_=tonescore_tuple
+            id_=None
+        else: 
+            raise(ValueError(f'tonescore_tuple {tonescore_tuple} should either have len of 9 or 8'))
+        result=Tonescore(tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_)
+        return result
+         
+    pass
+
+class Tonescore_old:
     REFERENCE_TABLE={
         'article':[('id','article_id')],
         'document':[('id','document')]

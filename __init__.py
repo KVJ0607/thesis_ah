@@ -18,6 +18,9 @@ from article.gnews import request_with_keyword
 # object2relational_insert_commit(CAR3S)
 
 #generate_document()
-populate_causing()
+#populate_causing()
+
+
+#from run_pr import *
 
 #request_with_keyword()

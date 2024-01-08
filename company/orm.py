@@ -453,7 +453,7 @@ class Object2Relational:
                 list: a list of python objects is returned
             
             Example: 
-            handler=fetch_some(('id>10',id),('h_code is not Null',h_code),order_by='id)
+            handler=fetch_some(('id>?',id),('h_code is not Null',h_code),order_by='id)
             """
             #connect to db
             con=sqlite3.connect(self.db_path)
@@ -465,25 +465,28 @@ class Object2Relational:
             para=[]
             for col_value_pair in req_col_value_pair: 
                 col_,val_=col_value_pair[0],col_value_pair[1]
-                where_statement=where_statement+col_+' '
-                para.append(val_)
+                where_statement=where_statement+col_+' And '
+                if val_ is not None:
+                    para.append(val_)
             
-            where_statement=where_statement[:-1]
-            
+            where_statement=where_statement[:-5]
+            #print(where_statement)
             #the sql command and parameter
             if order_by is not None: 
                 sql_="""
                     SELECT * 
                     FROM {}
                     WHERE {}
-                    ORDER BY {}
+                    ORDER BY {};
                     """.format(rr,where_statement,order_by)
             else:
                 sql_="""
                     SELECT * 
                     FROM {}
-                    WHERE {}
+                    WHERE {};
                     """.format(rr,where_statement)
+            #print(sql_)
+            
             fetched_result=c.execute(sql_,para).fetchall()
             
             #parse the tuple into object 
@@ -511,7 +514,7 @@ class Object2Relational:
         sql_="""
                 SELECT DISTINCT {}
                 FROM {} 
-                WHERE {} IS NOT NULL
+                WHERE {} IS NOT NULL;
                 """.format(col_name,self.relational_representation(),col_name)
         result_fetched=c.execute(sql_).fetchall()
         

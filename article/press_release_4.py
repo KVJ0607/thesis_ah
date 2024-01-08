@@ -99,7 +99,7 @@ class Cp_60(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -240,7 +240,7 @@ class Cp_60(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -293,7 +293,7 @@ class Cp_60(PressRelease):
 class Cp_61(PressRelease):
     def __init__(self):
         base_url="http://www.clzd.com/"
-        press_release_url="http://www.clzd.com/tc/news.php"
+        press_release_url="http://www.clzd.com/"#http://www.clzd.com/tc/news.php
         h_code="01858.HK".lower()
         self.__error_count=0
         self.__success_count=0
@@ -330,7 +330,7 @@ class Cp_61(PressRelease):
 class Cp_62(PressRelease):
     def __init__(self):
         base_url="http://www.chenmingpaper.com/"
-        press_release_url="http://www.chenmingpaper.com/news/news.aspx"
+        press_release_url="http://www.chenmingpaper.com/news/news.aspx" #new: http://www.chenmingpaper.com/news/mtjj.aspx #old: http://www.chenmingpaper.com/news/news.aspx
         h_code="01812.HK".lower()
         self.__error_count=0
         self.__success_count=0
@@ -388,7 +388,7 @@ class Cp_62(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -404,14 +404,17 @@ class Cp_62(PressRelease):
             driver2.get(url)
             time.sleep(2)
         except WebDriverException as e:
-            print(f'Warning: fail to connect to page via selenium, now trying bs4 {url}')
-            context = ssl.create_default_context(cafile=certifi.where())
-            html = urllib.request.urlopen(url,context=context).read()
-            target_ele=text_from_html(html)    
-            txt_length=len(target_ele)   
-            start_index=int(txt_length/2)
-            print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
-            return from_tuple_retri(target_ele,None,date_in_iso=date_ele)
+            try:
+                print(f'Warning: fail to connect to page via selenium, now trying bs4 {url}')
+                context = ssl.create_default_context(cafile=certifi.where())
+                html = urllib.request.urlopen(url,context=context).read()
+                target_ele=text_from_html(html)    
+                txt_length=len(target_ele)   
+                start_index=int(txt_length/2)
+                print('With bs4, content has length{} \n {}'.format(txt_length,target_ele[start_index:start_index+35]))
+                return from_tuple_retri(target_ele,None,date_in_iso=date_ele)
+            except:
+                return from_tuple_retri('',url,date_in_iso=date_ele)
         try:
             url_eles=WebDriverWait(driver2,15).until(EC.presence_of_all_elements_located((By.XPATH,"//body//a")))
             for url_ele in url_eles:
@@ -527,7 +530,7 @@ class Cp_62(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -553,7 +556,7 @@ class Cp_62(PressRelease):
             time.sleep(0.5)
             total_page=self.get_total_page(driver)
             current_page=self.get_current_page(driver)
-            start_page=1
+            start_page=3
             all_doc:list[Document]=[]
             while(current_page<=total_page):
                 if current_page>=start_page:
@@ -570,6 +573,7 @@ class Cp_62(PressRelease):
             driver.quit()
             return all_doc,self.company_id
         except MaxErrorReached as e:
+            return all_doc,self.company_id
             message_=""
             for err_url in all_err_url: 
                 message_=message_+err_url+"\n"
@@ -640,7 +644,7 @@ class Cp_64(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -778,7 +782,7 @@ class Cp_64(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -887,7 +891,7 @@ class Cp_65(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -1027,7 +1031,7 @@ class Cp_65(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -1138,7 +1142,7 @@ class Cp_66(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -1280,7 +1284,7 @@ class Cp_66(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -1410,7 +1414,7 @@ class Cp_67(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -1551,7 +1555,7 @@ class Cp_67(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -1687,7 +1691,7 @@ class Cp_68(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -1847,7 +1851,7 @@ class Cp_68(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -1954,7 +1958,7 @@ class Cp_69(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -2114,7 +2118,7 @@ class Cp_69(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -2379,7 +2383,7 @@ class Cp_70(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -2422,6 +2426,7 @@ class Cp_70(PressRelease):
             driver.quit()
             return all_doc,self.company_id
         except MaxErrorReached as e:
+            return all_doc,self.company_id
             message_=""
             for err_url in all_err_url: 
                 message_=message_+err_url+"\n"
@@ -2486,7 +2491,7 @@ class Cp_71(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -2645,7 +2650,7 @@ class Cp_71(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -2759,7 +2764,7 @@ class Cp_72(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -2920,7 +2925,7 @@ class Cp_72(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         start_page=1
         target_starting_page_url="https://www.cygs.com/news.aspx?mid=85&page={}".format(start_page)
         try:
@@ -3030,7 +3035,7 @@ class Cp_73(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -3222,7 +3227,7 @@ class Cp_73(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -3336,7 +3341,7 @@ class Cp_74(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -3494,7 +3499,7 @@ class Cp_74(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -3594,7 +3599,7 @@ class Cp_75(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -3769,7 +3774,7 @@ class Cp_75(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -3876,7 +3881,7 @@ class Cp_76(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -4035,7 +4040,7 @@ class Cp_76(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -4141,7 +4146,7 @@ class Cp_77(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -4302,7 +4307,7 @@ class Cp_77(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -4409,7 +4414,7 @@ class Cp_78(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -4570,7 +4575,7 @@ class Cp_78(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -4694,7 +4699,7 @@ class Cp_79(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -4855,7 +4860,7 @@ class Cp_79(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -4996,7 +5001,7 @@ class Cp_80(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -5158,7 +5163,7 @@ class Cp_80(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -5280,7 +5285,7 @@ class Cp_81(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -5474,7 +5479,7 @@ class Cp_81(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:
@@ -5574,7 +5579,7 @@ class Cp_82(PressRelease):
                 return from_tuple_retri(None,url,date_in_iso=date_ele)
         url_list:list[str]=[]
         chrome_options=Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--enable-javascript")
         if is_proxy:
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
@@ -5738,7 +5743,7 @@ class Cp_82(PressRelease):
             proxies_extension=proxies(USERNAME,PASSWORD,ENDPOINT,PORT)
             chrome_options.add_extension(proxies_extension)
         chrome_options.add_argument("--enable-javascript")
-        #chrome_options.add_argument('--headless')
+        ##chrome_options.add_argument('--headless')
         try:
             all_err_url:list[str]=[]
             if is_proxy:

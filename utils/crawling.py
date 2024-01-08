@@ -73,6 +73,55 @@ def reverse_date_in_str(string:str):
         parts = string.split('-')
         return f"{parts[2]}-{parts[1]}-{parts[0]}"
 
+def convert_to_iso_from_eng(date_str):
+    """
+    Oct17,2023
+    """
+    # Attempt to parse the date with a space between the month and day
+    try:
+        date_obj = datetime.strptime(date_str, '%b %d, %Y')
+    except ValueError:
+        # If it fails, try to parse with no space
+        try:
+            date_obj = datetime.strptime(date_str, '%b%d,%Y')
+        except ValueError:
+            # If it still fails, raise an exception indicating the format is not recognized
+            raise ValueError(f"Date format for '{date_str}' is not recognized. Expected 'MMM DD, YYYY' or 'MMMDD,YYYY'.")
+    
+    # Convert the datetime object to ISO format
+    iso_date = date_obj.strftime('%Y-%m-%d')
+
+    return iso_date
+
+
+def convert_to_iso_from_full_eng_or_abv_eng(date_str):
+    try:
+        # If it's already ISO, parsing will succeed and we can return it
+        if datetime.strptime(date_str, '%Y-%m-%d'):
+            return date_str
+    except ValueError:
+        pass  # Not in ISO format, so we'll try the other formats
+    # Define possible date formats
+    
+    date_formats = ['%d%b%Y', '%d%B%Y']
+    
+    # Try parsing the date with each format
+    for date_format in date_formats:
+        try:
+            # Parse the date
+            date_obj = datetime.strptime(date_str, date_format)
+            # Format it into ISO format and return
+            return date_obj.isoformat().split("T")[0]
+        except ValueError:
+            # If parsing fails, try the next format
+            continue
+    
+    # If all formats fail, raise an error
+    print(date_str)
+    raise ValueError(f"Date '{date_str}' is not in a recognized format.")
+
+
+
 def is_iso_date(string): 
     if string ==None or type(string)!=str: 
         return False
