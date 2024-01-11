@@ -3,6 +3,24 @@ from datetime import datetime
 
 
 
+def to_iso_date(date_string):
+    try:
+        # First, check if the string is in the ISO 8601 date format (YYYY-MM-DD).
+        datetime.strptime(date_string, "%Y-%m-%d")
+        # If the above line didn't raise an error, it means the string is a valid date.
+        return date_string
+    except ValueError:
+        # If a ValueError is raised, then it's not a simple date. Check for datetime.
+        try:
+            # Parse the string as an ISO 8601 datetime and return the date part.
+            dt = datetime.fromisoformat(date_string)
+            return dt.date().isoformat()
+        except ValueError:            
+            return False
+
+
+
+
 def is_iso_format(date_string):
     try:
         # If the string is a date in ISO 8601 format, this will succeed

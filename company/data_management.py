@@ -1,4 +1,5 @@
 from utils.constant import COMPANIES_DB
+"""
 def init_db():
     import sqlite3
     conn = sqlite3.connect(COMPANIES_DB)    
@@ -114,6 +115,22 @@ def init_db():
             )
         '''
     )
+
+    c.execute(
+        '''
+        CREATE TABLE car3_dual(
+            acar3_id NOT NULL
+            hcar3_id NOT NULL
+            date TEXT NOT NULL, 
+
+          
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            UNIQUE(acar3_id,hcar3_id),
+            FOREIGN KEY(acar3_id) REFERENCES car3(id)
+            FOREIGN KEY(hcar3_id) REFERENCES car3(id)
+            )
+        '''
+    )
     
     c.execute(
         '''
@@ -157,20 +174,29 @@ def init_db():
         CREATE TABLE tonescore(
             tonescore REAL, 
             positive_tonescore REAL, 
-            negative_tonescore REAL,
-            url TEXT UNIQUE NOT NULL, 
-            title TEXT,
-            published_at TEXT,
-
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            article_id INTEGER,
-            document_id INTEGER,
-            
-            FOREIGN KEY(article_id) REFERENCES article(id),
-            FOREIGN KEY(document_id) REFERENCES document(id)
+            negative_tonescore REAL,                                     
+            id INTEGER PRIMARY KEY AUTOINCREMENT,         
+            document_id INTEGER NOT NULL,
+            company_id INTEGER,            
+            FOREIGN KEY(document_id) REFERENCES document(id),
+            FOREIGN KEY(company_id) REFERENCES company(id)
         )
         '''
     )
+    c.execute(
+        '''
+        CREATE TABLE tonescore_merge(
+            tonescore REAL, 
+            positive_tonescore REAL, 
+            negative_tonescore REAL,       
+            date TEXT NOT NULL,                              
+            id INTEGER PRIMARY KEY AUTOINCREMENT,         
+            company_id INTEGER,            
+            FOREIGN KEY(company_id) REFERENCES company(id)
+        )
+        '''
+    )
+    
     c.execute(
         '''
         CREATE TABLE mention_in(
@@ -220,4 +246,4 @@ def init_db():
     conn.commit()
     c.close()
     conn.close()
-
+"""

@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import date as c_date
 import re 
 from collections import Counter
 
@@ -399,9 +400,9 @@ class IndexCompany:
         
     def __init__(self,flag:str,listed_region:str,name:str,code:str,id:int|None=None):
         self.__flag=flag 
-        self.__listed_region=listed_region
+        self.__listed_region=listed_region 
         self.__name=name
-        self.__code=code
+        self.__code=code #hsce,sse,szse
         
         self.__id=id
         
@@ -524,8 +525,8 @@ class Pricing:
             self.__adjusted_close=None
             
         self.__volume=float(volume)
-        self.__flag=flag
-        self.__listed_region=listed_region
+        self.__flag=flag #a,h
+        self.__listed_region=listed_region ##sh,sz,hk
             
         #db 
         self.__id=id 
@@ -581,7 +582,8 @@ class Pricing:
     @property
     def company_id(self):
         if self.__company_id is None: 
-            raise AttributeError('company_id is not setted'+'/n'+self.to_dict())        
+            mes='company_id is not setted'
+            raise AttributeError(mes)        
         return self.__company_id
     @property
     def index_company_id(self):
@@ -794,8 +796,8 @@ class Return:
 
 class Car3: 
     REFERENCE_TABLE={
-        'company_id':[('company_id')],
-        'return_id': [('id','last_day_return_id'),('id','today_return_id'),('id','next_day_return_id')]
+        'company':[('company_id')],
+        'return': [('id','last_day_return_id'),('id','today_return_id'),('id','next_day_return_id')]
     }
     @classmethod
     def rational_representation(cls)->str:
@@ -813,7 +815,7 @@ class Car3:
             str: The sql_ with ? place holder for insert row 
         """
         sql="""INSERT INTO car3(date,car3,flag,company_id,last_day_return_id,today_return_id,next_day_return_id)
-                VALUES(?,?,?,?,?,?,?,?)"""        
+                VALUES(?,?,?,?,?,?,?)"""        
         return sql
 
     @classmethod
@@ -927,6 +929,138 @@ class Car3:
             tuple:(self.date,self.car3,self.flag,self.__company_id,self.__last_day_return_id,self.__today_return_id,self.__next_day_return_id)
         """
         return (self.date,self.car3,self.flag,self.__company_id,self.__last_day_return_id,self.__today_return_id,self.__next_day_return_id)
+    
+
+class Car3Dual:
+    REFERENCE_TABLE={
+        'car3':[('id','acar3_id'),('id','hcar3_id')]
+    }
+    def rational_representation(cls)->str:
+        return 'car3_dual'     
+
+    @classmethod 
+    def attribute_in_col_string(cls)->str:
+        pass
+
+    @classmethod
+    def db_insert_col(cls)->str: 
+        """generate the snippet of sql for Insert row to db
+
+        Returns:
+            str: The sql_ with ? place holder for insert row 
+        """
+        sql="""INSERT INTO car3_dual(acar3_id,hcar3_id,date)
+                VALUES(?,?,?)"""        
+        return sql
+
+    @classmethod
+    def db_ignore_insert_col(cls)->str:
+        """generate the sql for insert or ingore row to db 
+        
+        Returns: 
+            str: The sql_ with ? place holder for insert or ignore row 
+        """
+        sql="""INSERT OR IGNORE INTO car3_dual(acar3_id,hcar3_id,date)
+                VALUES(?,?,?)"""                       
+        return sql
+    
+    @classmethod
+    def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
+        result=cls.REFERENCE_TABLE.get(main_table_rr,None)
+        if result==None: 
+            raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+        return result 
+        
+    def __init__(self,acar3_id:int,hcar3_id:int,date:str|datetime|c_date,id_=None): 
+        if type(acar3_id) != int or type(hcar3_id) != int: 
+            mes_="acar3_id {} or hcar3_id {} is not of type int".format(acar3_id,hcar3_id)
+            raise(TypeError(mes_))
+        if type(date)!= str and type(date)!=datetime and type(date)!=c_date:
+            mes_="date {} is not the right type".format(date)
+            raise(TypeError(mes_))
+        self.__acar3_id=acar3_id
+        self.__hcar3_id=hcar3_id
+        self.__date=date
+        self.__id=id_
+
+    @classmethod
+    def from_tuple(self,car3dual_tuple:tuple)->'Car3Dual': 
+        if len(car3dual_tuple)==4: 
+            acar3_id,hcar3_id,date,id_=car3dual_tuple
+        elif len(car3dual_tuple)==3: 
+            acar3_id,hcar3_id,date=car3dual_tuple
+            id_=None
+        else: 
+            raise(ValueError(f'car3dual_tuple {car3dual_tuple} should either have len 3 or 4'))
+        result=Car3Dual(acar3_id,hcar3_id,date,id_)
+        return result
+    
+    @property
+    def acar3_id(self):
+        if self.__acar3_id is None: 
+            mes_='acar3_id is not setted'+'/n'+self.to_dict()
+            raise AttributeError(mes_)               
+        return self.__acar3_id
+    
+    @property
+    def hcar3_id(self):
+        if self.__hcar3_id is None: 
+            mes_='hcar3_id is not setted'+'/n'+self.to_dict()
+            raise AttributeError(mes_)        
+        return self.__hcar3_id
+    
+    @property
+    def date(self):
+        return self.__date
+    @property
+    def id(self):
+        if self.__id is None: 
+            mes_='id is not setted'+'/n'+self.to_dict()
+            raise AttributeError(mes_)        
+        return self.__id
+    
+    def set_acar3_id(self,acar3_id_:int)->None:
+        self.__acar3_id=acar3_id_
+    
+    def set_hcar3_id(self,hcar3_id_:int)->None:
+        self.__hcar3_id=hcar3_id_
+    
+    def set_date(self,date_:str|datetime|c_date)->None:        
+        if type(date_)==datetime or type(date_)==c_date:
+            self.__date=date_.isoformat()
+        elif type(date_)==str:
+            self.__date=date_
+        else:
+            print("Warning in set_date: date should be of type datetime, not{}".format(type(date_)))
+            print(f"url{self.url}")
+            self.__date=None
+                    
+    
+    def set_id(self,id_:int )->None:
+        self.__id=id_
+    
+    def to_dict(self)->dict: 
+        return{
+            'acar3_id':self.__acar3_id,
+            'hcar3_id':self.__hcar3_id,
+            'date':self.date,
+            'id':self.__id, 
+        }
+    def to_tuple(self)->tuple: 
+        """
+        return[tuple]: (acar3_id,hcar3_id,date,id)
+        """
+        return (self.__acar3_id,self.__hcar3_id,self.date,self.__id)
+    
+    def to_insert_para(self)->tuple: 
+        """'?date,?car3,?flag,?company_id,?last_day_return_id,?today_return_id,?next_day_return_id
+
+        Returns:
+            tuple:(acar3_id,hcar3_id,date)
+        """
+        return (self.__acar3_id,self.__hcar3_id,self.date)
+    
+    
 class Article:
     REFERENCE_TABLE={}
     @classmethod
@@ -1049,8 +1183,8 @@ class Article:
         
         counter = Counter()
         tone_score=0
-        positive_score=0 
-        negative_score=0 
+        positive_tonescore=0 
+        negative_tonescore=0 
         words_text=content.split()
         counter.update(words_text)
         
@@ -1062,19 +1196,19 @@ class Article:
             strong_modal_flag=int(result.strong_modal)
             weak_modal_flag=int(result.weak_modal)
             if positive_flag>0 and strong_modal_flag>0:
-                positive_score=positive_score+2*word_count
+                positive_tonescore=positive_tonescore+2*word_count
             elif positive_flag>0 and weak_modal_flag>0: 
-                positive_score=positive_score+0.5*word_count
+                positive_tonescore=positive_tonescore+0.5*word_count
             elif positive_flag>0: 
-                positive_score=positive_score+1*word_count
+                positive_tonescore=positive_tonescore+1*word_count
             elif negative_flag>0 and strong_modal_flag>0: 
-                negative_score=negative_score+2*word_count
+                negative_tonescore=negative_tonescore+2*word_count
             elif negative_flag>0 and weak_modal_flag>0: 
-                negative_score=negative_score+0.5 *word_count
+                negative_tonescore=negative_tonescore+0.5 *word_count
             elif negative_flag>0: 
-                negative_score=negative_score+1*word_count
-        tone_score=positive_score-negative_score
-        result=Tonescore(tone_score,positive_score,negative_score,self.url,self.title,self.published_at,self.api,None,self.id,None)
+                negative_tonescore=negative_tonescore+1*word_count
+        tone_score=positive_tonescore-negative_tonescore
+        result=Tonescore(tone_score,positive_tonescore,negative_tonescore,self.url,self.title,self.published_at,self.api,None,self.id,None)
         return result
             
 
@@ -1215,7 +1349,9 @@ class Document:
             self.__published_at=None
         else:
             message=f"published_at should be string or in isoformat,not {published_at}"
+            print(message)
             raise(ValueError(message))
+            #self.__published_at=published_at
           
         self.__source=source
         if type(content)==str or content==None: 
@@ -1321,8 +1457,8 @@ class Document:
         
         counter = Counter()
         tone_score=0
-        positive_score=0 
-        negative_score=0 
+        positive_tonescore=0 
+        negative_tonescore=0 
         words_text=content.split()
         counter.update(words_text)
         
@@ -1334,23 +1470,24 @@ class Document:
             strong_modal_flag=int(result.strong_modal)
             weak_modal_flag=int(result.weak_modal)
             if positive_flag>0 and strong_modal_flag>0:
-                positive_score=positive_score+2*word_count
+                positive_tonescore=positive_tonescore+2*word_count
             elif positive_flag>0 and weak_modal_flag>0: 
-                positive_score=positive_score+0.5*word_count
+                positive_tonescore=positive_tonescore+0.5*word_count
             elif positive_flag>0: 
-                positive_score=positive_score+1*word_count
+                positive_tonescore=positive_tonescore+1*word_count
             elif negative_flag>0 and strong_modal_flag>0: 
-                negative_score=negative_score+2*word_count
+                negative_tonescore=negative_tonescore+2*word_count
             elif negative_flag>0 and weak_modal_flag>0: 
-                negative_score=negative_score+0.5 *word_count
+                negative_tonescore=negative_tonescore+0.5 *word_count
             elif negative_flag>0: 
-                negative_score=negative_score+1*word_count
-        tone_score=positive_score-negative_score
-        result=Tonescore(tone_score,positive_score,negative_score,self.url,self.title,self.published_at,None,None,None,self.id)
+                negative_tonescore=negative_tonescore+1*word_count
+        tone_score=positive_tonescore-negative_tonescore
+        result=Tonescore(tone_score,positive_tonescore,negative_tonescore,self.url,self.title,self.published_at,None,None,None,self.id)
         return result
 class Tonescore: 
     REFERENCE_TABLE={
-        'document':[('id','document')]        
+        'document':[('id','document_id')],
+        'company':[('id','company_id')]     
     }
     
     @classmethod
@@ -1368,8 +1505,8 @@ class Tonescore:
         Returns:
             str: The sql_ with ? place holder for insert row 
         """
-        sql="""INSERT INTO tonescore(tonescore,positive_score,negative_score,document_id,company_id')
-                VALUES(?,?,?,?,?)"""
+        sql="""INSERT INTO tonescore(tonescore,positive_tonescore,negative_tonescore,document_id,company_id,is_hkex)
+                VALUES(?,?,?,?,?,?)"""
         return sql
 
     @classmethod
@@ -1379,8 +1516,8 @@ class Tonescore:
         Returns: 
             str: The sql_ with ? place holder for insert or ignore row 
         """
-        sql="""INSERT OR IGNORE INTO tonescore(tonescore,positive_score,negative_score,document_id,company_id')
-                VALUES(?,?,?,?,?)"""        
+        sql="""INSERT OR IGNORE INTO tonescore(tonescore,positive_tonescore,negative_tonescore,document_id,company_id,is_hkex')
+                VALUES(?,?,?,?,?,?)"""        
         return sql
     
     @classmethod
@@ -1390,36 +1527,110 @@ class Tonescore:
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
         return result    
     
-    def __init__(self,tonescore:float,positive_score:float,negative_score:float,id:int|None=None,document_id:int|None=None):        
+    def __init__(self,tonescore:float,positive_tonescore:float,negative_tonescore:float,id:int|None=None,document_id:int|None=None,company_id:int|None=None,is_hkex:int=0):        
         self.__tonescore=tonescore
-        self.__positive_score=positive_score
-        self.__negative_score=negative_score                                
+        self.__positive_tonescore=positive_tonescore
+        self.__negative_tonescore=negative_tonescore                                
         #db 
         self.__id=id        
         self.__document_id=document_id
-
+        self.__company_id=company_id
+        if type(is_hkex)!=int:
+            raise(TypeError())
+        self.__is_hkex=is_hkex
     @classmethod
     def from_tuple(self,tonescore_tuple:tuple)->'Tonescore': 
-        if len(tonescore_tuple)==10: 
-            tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_=tonescore_tuple
-        elif len(tonescore_tuple)==9: 
-            tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,article_id_,document_id_=tonescore_tuple
+        if len(tonescore_tuple)==7: 
+            tonescore_,positive_tonescore_,negative_tonescore_,id_,document_id_,company_id,is_hkex=tonescore_tuple
+        elif len(tonescore_tuple)==6: 
+            tonescore_,positive_tonescore_,negative_tonescore_,document_id_,company_id,is_hkex=tonescore_tuple
             id_=None
         else: 
-            raise(ValueError(f'tonescore_tuple {tonescore_tuple} should either have len of 9 or 8'))
-        result=Tonescore(tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_)
+            raise(ValueError(f'tonescore_tuple {tonescore_tuple} should either have len of 7 or 6'))
+        result=Tonescore(tonescore_,positive_tonescore_,negative_tonescore_,id_,document_id_,company_id,is_hkex)
         return result
          
-    pass
+    @property
+    def tonescore(self):
+        return self.__tonescore
+    @property
+    def positive_tonescore(self):
+        return self.__positive_tonescore
+    @property
+    def negative_tonescore(self):
+        return self.__negative_tonescore
 
-class Tonescore_old:
+    #db 
+    @property
+    def id(self):
+        if self.__id is None: 
+            mes_="id is not setted /n"+self.to_dict()
+            raise AttributeError(mes_)
+        return self.__id    
+  
+    @property
+    def document_id(self):
+        if self.__document_id is None: 
+            mes_="document_id is not setted /n"+self.to_dict()
+            raise AttributeError(mes_)        
+        return self.__document_id
+    
+    @property
+    def company_id(self):
+        if self.__company_id is None: 
+            mes_="company_id is not setted /n"+self.to_dict()
+            raise AttributeError(mes_)        
+        return self.__company_id
+
+    @property
+    def is_hkex(self):
+        return self.__is_hkex
+    
+   
+    #set function 
+    def set_id(self,id:int)->None:
+        self.__id=id
+    def set_document_id(self,document_id_:int)->None:
+        self.__document_id=document_id_
+    def set_company_id(self,company_id:int): 
+        self.__company_id=company_id    
+    
+    def to_dict(self)->dict: 
+        return {
+            'tonescore':self.tonescore,
+            'positive_tonescore':self.positive_tonescore,
+            'negative_tonescore':self.negative_tonescore,
+            'id':self.__id,
+            'document_id':self.__document_id,
+            'company_id':self.__company_id,
+            'is_hkex':self.is_hkex
+        }
+        
+    def to_tuple(self)->tuple: 
+        """
+        return (tonescore,positive_tonescore,negative_tonescore,id,document_id,company_id,is_hkex)
+        """
+        return (self.tonescore,self.positive_tonescore,self.negative_tonescore,self.__id,self.__document_id,self.__company_id,self.is_hkex)
+    def to_insert_para(self)->tuple: 
+        """
+        ?tonescore,?positive_tonescore,?negative_tonescore,?document_id,?company_id
+        return[tuple]: tonescore,positive_tonescore,negative_tonescore,document_id,company_id
+        """
+        return (self.tonescore,self.positive_tonescore,self.negative_tonescore,self.__document_id,self.__company_id,self.is_hkex)
+
+class TonescoreMerge:
+    """
+    tonescore_merge					
+    tonescore	positive_tonescore	negative_tonescore	date	id	company_id is_hkex
+    """
+
     REFERENCE_TABLE={
-        'article':[('id','article_id')],
-        'document':[('id','document')]
+        'company':[('id','company_id')]        
     }
+    
     @classmethod
     def rational_representation(cls)->str:
-        return 'tonescore'    
+        return 'tonescore_merge'    
 
     @classmethod 
     def attribute_in_col_string(cls)->str:
@@ -1432,8 +1643,8 @@ class Tonescore_old:
         Returns:
             str: The sql_ with ? place holder for insert row 
         """
-        sql="""INSERT INTO tonescore(tonescore,positive_score,negative_score,url,title,published_at,api,article_id,document_id')
-                VALUES(?,?,?,?,?,?,?,?,?)"""
+        sql="""INSERT INTO tonescore_merge(tonescore,positive_tonescore,negative_tonescore,date,company_id,is_hkex)
+                VALUES(?,?,?,?,?,?)"""
         return sql
 
     @classmethod
@@ -1443,8 +1654,8 @@ class Tonescore_old:
         Returns: 
             str: The sql_ with ? place holder for insert or ignore row 
         """
-        sql="""INSERT OR IGNORE INTO tonescore(tonescore,positive_score,negative_score,url,title,published_at,api,article_id,document_id')
-                VALUES(?,?,?,?,?,?,?,?,?)"""
+        sql="""INSERT OR IGNORE INTO tonescore_merge(tonescore,positive_tonescore,negative_tonescore,date,company_id,is_hkex')
+                VALUES(?,?,?,?,?,?)"""        
         return sql
     
     @classmethod
@@ -1452,109 +1663,239 @@ class Tonescore_old:
         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
         if result==None: 
             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
-        return result 
-        
-    def __init__(self,tonescore:float,positive_score:float,negative_score:float,url:str,title:str,published_at:datetime,api:str,id:int|None=None,article_id:int|None=None,document_id:int|None=None):        
+        return result    
+    
+    def __init__(self,tonescore:float,positive_tonescore:float,negative_tonescore:float,date_:str|datetime|c_date,id:int|None=None,company_id:int|None=None,is_hkex:int=None):        
         self.__tonescore=tonescore
-        self.__positive_score=positive_score
-        self.__negative_score=negative_score
-        self.__url=url 
-        self.__title=title
-        if type(published_at)==datetime:
-            self.__published_at=published_at
-        else: 
-            raise(TypeError("published_at should be of type datetime, not{}".format(type(published_at))))
-        self.__api=api
-        
+        self.__positive_tonescore=positive_tonescore
+        self.__negative_tonescore=negative_tonescore                                
+        self.__date=date_
         #db 
-        self.__id=id
-        self.__article_id=article_id
-        self.__document_id=document_id
-
+        self.__id=id        
+        self.__company_id=company_id
+        self.__is_hkex=is_hkex
+        
     @classmethod
     def from_tuple(self,tonescore_tuple:tuple)->'Tonescore': 
-        if len(tonescore_tuple)==10: 
-            tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_=tonescore_tuple
-        elif len(tonescore_tuple)==9: 
-            tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,article_id_,document_id_=tonescore_tuple
+        if len(tonescore_tuple)==7: 
+            tonescore_,positive_tonescore_,negative_tonescore_,date_,id_,company_id,is_hkex=tonescore_tuple
+        elif len(tonescore_tuple)==6: 
+            tonescore_,positive_tonescore_,negative_tonescore_,date_,company_id,is_hkex=tonescore_tuple
             id_=None
         else: 
-            raise(ValueError(f'tonescore_tuple {tonescore_tuple} should either have len of 9 or 8'))
-        result=Tonescore(tonescore_,positive_score_,negative_score_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_)
+            raise(ValueError(f'tonescoremerge_tuple {tonescore_tuple} should either have len of 6 or 7'))
+        result=TonescoreMerge(tonescore_,positive_tonescore_,negative_tonescore_,date_,id_,company_id,is_hkex)
         return result
-    
+         
     @property
     def tonescore(self):
         return self.__tonescore
+    
     @property
-    def positive_score(self):
-        return self.__positive_score
+    def positive_tonescore(self):
+        return self.__positive_tonescore
     @property
-    def negative_score(self):
-        return self.__negative_score
+    def negative_tonescore(self):
+        return self.__negative_tonescore
     @property
-    def url(self):
-        return self.__url
-    @property
-    def title(self):
-        return self.__title
-    @property
-    def published_at(self):
-        return self.__published_at
-    @property
-    def api(self):
-        return self.__api
+    def date(self):
+        return self.__date
+    
 
     #db 
     @property
     def id(self):
         if self.__id is None: 
-            raise AttributeError("id is not setted /n"+self.to_dict())
+            mes_="id is not setted /n"+self.to_dict()
+            raise AttributeError(mes_)
         return self.__id    
-    @property
-    def article_id(self):
-        if self.__article_id is None: 
-            raise AttributeError("article_id is not setted /n"+self.to_dict())
-        return self.__article_id    
-    @property
-    def document_id(self):
-        if self.__document_id is None: 
-            raise AttributeError("document_id is not setted /n"+self.to_dict())        
-        return self.__document_id
+
     
+    @property
+    def company_id(self):
+        if self.__company_id is None: 
+            mes_="company_id is not setted /n"+self.to_dict()
+            raise AttributeError(mes_)        
+        return self.__company_id
+
+    @property
+    def is_hkex(self):
+        return self.__is_hkex
+    
+   
     #set function 
     def set_id(self,id:int)->None:
         self.__id=id
-    def set_article_id(self,article_id:int): 
-        self.__article_id=article_id
-    def set_document_id(self,document_id_:int)->None:
-        self.__document_id=document_id_
-    
+    def set_company_id(self,company_id:int): 
+        self.__company_id=company_id    
     
     def to_dict(self)->dict: 
         return {
             'tonescore':self.tonescore,
-            'positive_tonescore':self.positive_score,
-            'negative_tonescore':self.negative_score,
-            'url':self.url, 
-            'title':self.title,
-            'published_at':self.published_at,
-            'api':self.api,
+            'positive_tonescore':self.positive_tonescore,
+            'negative_tonescore':self.negative_tonescore,
+            'date':self.date,
             'id':self.__id,
-            'article_id':self.__article_id,
-            'document_id':self.__document_id
-                }
+            'company_id':self.__company_id,
+            'is_hkex':self.is_hkex
+        }
+        
     def to_tuple(self)->tuple: 
         """
-        return (tonescore,positive_score,negative_score,url,title,published_at,id,article_id,document_id)
+        return (tonescore,positive_tonescore,negative_tonescore,date,id,company_id,is_hkex)
         """
-        return (self.tonescore,self.positive_score,self.negative_score,self.url,self.title,self.published_at,self.__id,self.__article_id,self.__document_id)
+        return (self.tonescore,self.positive_tonescore,self.negative_tonescore,self.date,self.__id,self.__company_id)
     def to_insert_para(self)->tuple: 
         """
-        ?tonescore,?positive_score,?negative_score,?url,?title,?published_at,?article_id,?document_id
-        return[tuple]: tonescore,positive_score,negative_score,url,title,published_at,article_id,document_id
+        ?tonescore,?positive_tonescore,?negative_tonescore,?document_id,?company_id,?is_hkex
+        return[tuple]: tonescore,positive_tonescore,negative_tonescore,date,company_id,is_hkex
         """
-        return (self.tonescore,self.positive_score,self.negative_score,self.url,self.title,self.published_at,self.__article_id,self.__document_id)
+        return (self.tonescore,self.positive_tonescore,self.negative_tonescore,self.date,self.__company_id,self.is_hkex)
+
+
+# class Tonescore_old:
+#     REFERENCE_TABLE={
+#         'article':[('id','article_id')],
+#         'document':[('id','document')]
+#     }
+#     @classmethod
+#     def rational_representation(cls)->str:
+#         return 'tonescore'    
+
+#     @classmethod 
+#     def attribute_in_col_string(cls)->str:
+#         pass
+    
+#     @classmethod
+#     def db_insert_col(cls)->str: 
+#         """generate the sql for Insert row to db
+
+#         Returns:
+#             str: The sql_ with ? place holder for insert row 
+#         """
+#         sql="""INSERT INTO tonescore(tonescore,positive_tonescore,negative_tonescore,url,title,published_at,api,article_id,document_id')
+#                 VALUES(?,?,?,?,?,?,?,?,?)"""
+#         return sql
+
+#     @classmethod
+#     def db_ignore_insert_col(cls)->str:
+#         """generate the sql for insert or ingore row to db 
+        
+#         Returns: 
+#             str: The sql_ with ? place holder for insert or ignore row 
+#         """
+#         sql="""INSERT OR IGNORE INTO tonescore(tonescore,positive_tonescore,negative_tonescore,url,title,published_at,api,article_id,document_id')
+#                 VALUES(?,?,?,?,?,?,?,?,?)"""
+#         return sql
+    
+#     @classmethod
+#     def table_reference_names_pair(cls,main_table_rr:str)->list[tuple]: 
+#         result=cls.REFERENCE_TABLE.get(main_table_rr,None)
+#         if result==None: 
+#             raise(ValueError(f'the main table{main_table_rr} is not linked to {cls}'))
+#         return result 
+        
+#     def __init__(self,tonescore:float,positive_tonescore:float,negative_tonescore:float,url:str,title:str,published_at:datetime,api:str,id:int|None=None,article_id:int|None=None,document_id:int|None=None):        
+#         self.__tonescore=tonescore
+#         self.__positive_tonescore=positive_tonescore
+#         self.__negative_tonescore=negative_tonescore
+#         self.__url=url 
+#         self.__title=title
+#         if type(published_at)==datetime:
+#             self.__published_at=published_at
+#         else: 
+#             raise(TypeError("published_at should be of type datetime, not{}".format(type(published_at))))
+#         self.__api=api
+        
+#         #db 
+#         self.__id=id
+#         self.__article_id=article_id
+#         self.__document_id=document_id
+
+#     @classmethod
+#     def from_tuple(self,tonescore_tuple:tuple)->'Tonescore': 
+#         if len(tonescore_tuple)==10: 
+#             tonescore_,positive_tonescore_,negative_tonescore_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_=tonescore_tuple
+#         elif len(tonescore_tuple)==9: 
+#             tonescore_,positive_tonescore_,negative_tonescore_,url_,title_,published_at_6,api_7,article_id_,document_id_=tonescore_tuple
+#             id_=None
+#         else: 
+#             raise(ValueError(f'tonescore_tuple {tonescore_tuple} should either have len of 9 or 8'))
+#         result=Tonescore(tonescore_,positive_tonescore_,negative_tonescore_,url_,title_,published_at_6,api_7,id_,article_id_,document_id_)
+#         return result
+    
+#     @property
+#     def tonescore(self):
+#         return self.__tonescore
+#     @property
+#     def positive_tonescore(self):
+#         return self.__positive_tonescore
+#     @property
+#     def negative_tonescore(self):
+#         return self.__negative_tonescore
+#     @property
+#     def url(self):
+#         return self.__url
+#     @property
+#     def title(self):
+#         return self.__title
+#     @property
+#     def published_at(self):
+#         return self.__published_at
+#     @property
+#     def api(self):
+#         return self.__api
+
+#     #db 
+#     @property
+#     def id(self):
+#         if self.__id is None: 
+#             raise AttributeError("id is not setted /n"+self.to_dict())
+#         return self.__id    
+#     @property
+#     def article_id(self):
+#         if self.__article_id is None: 
+#             raise AttributeError("article_id is not setted /n"+self.to_dict())
+#         return self.__article_id    
+#     @property
+#     def document_id(self):
+#         if self.__document_id is None: 
+#             raise AttributeError("document_id is not setted /n"+self.to_dict())        
+#         return self.__document_id
+    
+#     #set function 
+#     def set_id(self,id:int)->None:
+#         self.__id=id
+#     def set_article_id(self,article_id:int): 
+#         self.__article_id=article_id
+#     def set_document_id(self,document_id_:int)->None:
+#         self.__document_id=document_id_
+    
+    
+#     def to_dict(self)->dict: 
+#         return {
+#             'tonescore':self.tonescore,
+#             'positive_tonescore':self.positive_tonescore,
+#             'negative_tonescore':self.negative_tonescore,
+#             'url':self.url, 
+#             'title':self.title,
+#             'published_at':self.published_at,
+#             'api':self.api,
+#             'id':self.__id,
+#             'article_id':self.__article_id,
+#             'document_id':self.__document_id
+#                 }
+#     def to_tuple(self)->tuple: 
+#         """
+#         return (tonescore,positive_tonescore,negative_tonescore,url,title,published_at,id,article_id,document_id)
+#         """
+#         return (self.tonescore,self.positive_tonescore,self.negative_tonescore,self.url,self.title,self.published_at,self.__id,self.__article_id,self.__document_id)
+#     def to_insert_para(self)->tuple: 
+#         """
+#         ?tonescore,?positive_tonescore,?negative_tonescore,?url,?title,?published_at,?article_id,?document_id
+#         return[tuple]: tonescore,positive_tonescore,negative_tonescore,url,title,published_at,article_id,document_id
+#         """
+#         return (self.tonescore,self.positive_tonescore,self.negative_tonescore,self.url,self.title,self.published_at,self.__article_id,self.__document_id)
 
 class MentionIn:
     REFERENCE_TABLE={

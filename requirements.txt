@@ -4,6 +4,7 @@ statsmodels==0.14.0
 requests==2.31.0
 hanzidentifier==1.2.0
 requests==2.31.0
+statsmodels
 
 #web crawling
 selenium==4.16.0
@@ -19,6 +20,8 @@ beautifulsoup4==4.12.2
 xlrd==2.0.1
 PyMuPDF==1.23.7
 OpenHowNet
+
+
 
 #flask and sqlite
 Blinker

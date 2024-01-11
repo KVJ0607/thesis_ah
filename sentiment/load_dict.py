@@ -2,7 +2,7 @@
 #from sentiment.sentiment import *
 
 import csv 
-from utils.constant import ZH_DICTIONARY,EN_DICTIONARY
+from utils.constant import ZH_DICTIONARY,EN_DICTIONARY,ZH_STOPWORDS,EN_STOPWORDS
 def cal_tone_score():
     pass
 
@@ -105,12 +105,12 @@ def load_dict_from_csv_eng(csv_file_path=EN_DICTIONARY):
         return retrieved_dict
 
 
-def load_stopwords(file_path):
+def load_stopwords(file_path=ZH_STOPWORDS):
     with open(file_path, 'r', encoding='utf-8') as file:
         stopwords = set(line.strip() for line in file if line.strip())
     return stopwords
 
-def load_stopwords_en(file_path):
+def load_stopwords_en(file_path=EN_STOPWORDS):
     with open(file_path, 'r', encoding='utf-8') as file:
         stopwords = set(line.strip() for line in file if line.strip())
     return stopwords

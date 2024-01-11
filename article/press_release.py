@@ -6995,6 +6995,7 @@ class Cp_24(PressRelease):
     def next_page(self,cur_page:int,driver:WebDriver)->None:
         wait = WebDriverWait(driver,30)
         page_div=wait.until(EC.element_to_be_clickable((By.XPATH,"//a[img[@src='/statics/images/j17.png']]")))
+        ActionChains(driver).scroll_to_element(page_div)
         # xpath_my=f"//div[@class='aos-animate']/p[{cur_page+2}]/a"
         # page_div=wait.until(EC.element_to_be_clickable((By.XPATH,xpath_my)))
         #/html/body/div[4]/div[4]/div[4]/p[6]/a
@@ -7061,12 +7062,13 @@ class Cp_24(PressRelease):
         try:
             target_ele=driver2.find_element(By.XPATH,"//div[@clas='xwxq']").text
             
-            date_ele=driver2.find_element(By.XPATH,"//div[@class='xwxq-top']//p").text.split(' ')[0]
+            date_ele=driver2.find_element(By.XPATH,"//div[@class='xwxq-top']//p").text.split('\n')[0].split(' ')[0]
             
         except Exception:
             try: 
                 target_ele=driver2.find_element(By.XPATH,'//body').text
-                date_ele=driver2.find_element(By.XPATH,"//div[@class='xwxq-top']//p").text.split(' ')[0]
+                date_ele=driver2.find_element(By.XPATH,"//div[@class='xwxq-top']//p").text.split('\n')[0].split(' ')[0]
+                print(date_ele)
             except Exception:
                 print(f'error in retrieve_content: {url}')
                 driver2.quit()
@@ -7124,11 +7126,12 @@ class Cp_24(PressRelease):
                 err_urls.append(err_url)
                 if self.error_count>ERROR_COUNT and self.success_count*CONVERTION_RATE<self.error_count:
                     raise(MaxErrorReached())
-            else:
-                document_list[i].set_content(content_list[i]["content"])
-                document_list[i].set_published_at(content_list[i]["date_in_iso"])
-                refined_document_list.append(document_list[i])
-                self.add_success_count()
+            else:                
+                if is_iso_date(content_list[i]["date_in_iso"]):                    
+                    document_list[i].set_content(content_list[i]["content"])
+                    document_list[i].set_published_at(content_list[i]["date_in_iso"])
+                    refined_document_list.append(document_list[i])
+                    self.add_success_count()
         print(f'success in read page of company_id:{self.company_id}')
         return from_tuple_read(doc_list=document_list,err_url_list=err_urls)
 
@@ -7140,7 +7143,7 @@ class Cp_24(PressRelease):
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument("--enable-javascript")
         #chrome_options.page_load_strategy = 'eager' 
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument("--headless")
         try:
             all_err_url:list[str]=[]
             driver=webdriver.Chrome(options=chrome_options)
@@ -7183,6 +7186,7 @@ class Cp_24(PressRelease):
             driver.quit()
             return all_doc,self.company_id
         except MaxErrorReached as e:
+            return all_doc,self.company_id
             raise(MaxErrorReached(all_err_url,self.company_id))
 
 class Cp_25(PressRelease):

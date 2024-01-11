@@ -27,7 +27,7 @@ def read_and_commit_companies_from_csv(filename:str,db_path=COMPANIES_DB)->None:
         reader.__next__()
         for row in reader: 
             en_name,h_code,a_code,zh_name,others=row[0],row[1],row[2],row[3],row[4:]
-            company_id=company_handler.fetch_some([('h_code',h_code.lower())])[0].id
+            company_id=company_handler.fetch_some(('h_code=?',h_code.lower()))[0].id
             for keyword in row: 
                 keyword_obj=Keyword(keyword,company_id)
             
@@ -93,25 +93,34 @@ def read_and_commit_pricing_from_a_directory(foldername:str,db_path=COMPANIES_DB
         csv_filename=csv_file.split('/')[-1]
         if csv_filename.startswith('index_'): 
             index_code=csv_filename.split('.csv')[0][6:]
-            resulting_row=Company(None,None,None,None)
-            index_resulting_row=index_company_handler.fetch_some([('code',index_code.lower())])[0]
+            #resulting_row=Company(None,None,None,None)
+            index_resulting_row=index_company_handler.fetch_some(('code=?',index_code.lower()))[0]
+            flag,listed_region,index_name,index_code,index_company_id =index_company_handler.to_tuple(index_resulting_row)
+            company_id=None
         elif listed_region.upper()=='HK': 
             flag='h'
             h_code=csv_filename[0:7]
             h_code=Company.reformat_h_code(h_code)
-            resulting_row=company_handler.fetch_some([('h_code',h_code)])[0]
-            index_resulting_row=IndexCompany(None,None,None,None,None)
-        elif listed_region.upper()=='SZ' or listed_region.upper()=='SH':             
-            flag='a'
-            a_code=csv_filename[0:9]     
-            resulting_row=company_handler.fetch_some([('a_code',a_code.lower())])[0]                        
-            index_resulting_row=IndexCompany(None,None,None,None,None)
+            resulting_row=company_handler.fetch_some(('h_code=?',h_code))[0]
+            h_code,a_code,zh_name,en_name,company_id=company_handler.to_tuple(resulting_row) 
+            index_company_id=None
+            
+        elif listed_region.upper()=='SZ' or listed_region.upper()=='SH':
+            try:              
+                flag='a'
+                a_code=csv_filename[0:9]     
+                resulting_row=company_handler.fetch_some(('a_code=?',a_code.lower()))[0]  
+                h_code,a_code,zh_name,en_name,company_id=company_handler.to_tuple(resulting_row)  
+                index_company_id=None                                 
+            except Exception as e: 
+                print(a_code)
+                print(csv_filename)
+                print(csv_filename[0:9])
+                raise(e)
         else: 
             raise(ValueError(f'The folderpath{foldername} contain csv with wrong filename {csv_file}'))
         
 
-        flag,listed_region,index_name,index_code,index_company_id =index_company_handler.to_tuple(index_resulting_row)
-        h_code,a_code,zh_name,en_name,company_id=company_handler.to_tuple(resulting_row)  
         with open(csv_file,'r') as f: 
             reader=csv.reader(f)
             reader.__next__()
@@ -124,17 +133,16 @@ def read_and_commit_pricing_from_a_directory(foldername:str,db_path=COMPANIES_DB
                     close_=float(row[4])
                     adjusted_close_=float(row[5])
                     volume_=float(row[6]) 
-
-            all_pricing.append(Pricing(date_,open_,high_,low_,close_,adjusted_close_,volume_,flag,listed_region,None,company_id,index_company_id))
+                    all_pricing.append(Pricing(date_,open_,high_,low_,close_,adjusted_close_,volume_,flag.lower(),listed_region.lower(),None,company_id,index_company_id))
             
             
-    # non_null_pricing=[]
-    # for one_pricing in all_pricing: 
-    #     one_pricing:Pricing
-    #     if type(one_pricing.adjusted_close) == float: 
-    #         non_null_pricing.append(one_pricing)
+    non_null_pricing=[]
+    for one_pricing in all_pricing: 
+        one_pricing:Pricing
+        if type(one_pricing.adjusted_close) == float: 
+            non_null_pricing.append(one_pricing)
     
-    object2relational_insert_commit(all_pricing,db_path)        
-    return all_pricing 
+    object2relational_insert_commit(non_null_pricing,db_path)        
+    return non_null_pricing
 
     

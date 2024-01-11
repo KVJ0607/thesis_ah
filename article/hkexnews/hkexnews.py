@@ -76,7 +76,7 @@ def populate_causing(db_path=COMPANIES_DB):
     for document_info in documents: 
         doc_id,cp_id,datetime_in_iso=document_info.id,document_info.company_id,document_info.published_at
         date_in_iso= datetime_in_iso.split("'")[0]
-        col_requirement={'date=?':date_in_iso,'company_id=?':cp_id}
+        col_requirement={'date=?':date_in_iso,'company_id':cp_id}
         #this car3_in_date_and_company has A flag and H flag version
         car3_in_date_and_company=car3_handler.fetch_object_with_columns_values(column_value_pair=col_requirement,flatten=True)
         causing_obj=[]

@@ -219,8 +219,10 @@ def from_tuple_read(doc_list:list[Document],err_url_list:list[str]):
         'doc_list':doc_list,
         'err_url_list':err_url_list
     }
-
-
+def get_h_code_from_id(cp_id:int)->str:
+    cp_handle=Object2Relational(Company)
+    result:Company=cp_handle.fetch_some(('id=?',cp_id))[0]
+    return result.h_code
 def get_id_from_h_code(h_code:str): 
     cp_handle=Object2Relational(Company)
     result:Company=cp_handle.fetch_some(('h_code=?',h_code.lower()))[0]
@@ -289,10 +291,6 @@ class PressRelease:
         return self.__driver_path
     
     
-    def get_id_from_h_code(h_code:str,db_path=COMPANIES_DB):
-        company_handler=Object2Relational(Company)
-        result_id=company_handler.fetch_some(('h_code=',h_code))
-        return result_id
         
     
     def get_current_page(self,driver)->int:
