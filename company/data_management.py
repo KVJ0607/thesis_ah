@@ -1,5 +1,5 @@
 from utils.constant import COMPANIES_DB
-"""
+
 def init_db():
     import sqlite3
     conn = sqlite3.connect(COMPANIES_DB)    
@@ -246,4 +246,4 @@ def init_db():
     conn.commit()
     c.close()
     conn.close()
-"""
+
