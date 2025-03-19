@@ -580,10 +580,9 @@ class Cp_42(PressRelease):
             message_=message_+"The press release link {}".format(self.press_release_url)
             raise(MaxErrorReached(message_))
         
-class Cp_43(PressRelease):
     def __init__(self):
-        base_url="http://www.zzbank.cn/"
-        press_release_url="http://www.zzbank.cn/inversrtor_relations/ggth/agu/2023/"
+        base_url=""
+        press_release_url=""
         h_code="06196.HK".lower()
         self.__error_count=0
         self.__success_count=0
